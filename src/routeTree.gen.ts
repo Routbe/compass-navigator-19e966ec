@@ -232,6 +232,8 @@ import { Route as ApiAiRewriteRouteImport } from './routes/api_.ai.rewrite'
 import { Route as ApiAuthSplatRouteImport } from './routes/api_.auth.$'
 import { Route as ApiBadgeVerifyRouteImport } from './routes/api_.badge.verify'
 import { Route as ApiBunqCheckStatusRouteImport } from './routes/api_.bunq.check-status'
+import { Route as ApiIngestGridRouteImport } from './routes/api_.ingest.grid'
+import { Route as ApiIngestOmniRouteImport } from './routes/api_.ingest.omni'
 import { Route as ApiPresenceNowPlayingRouteImport } from './routes/api_.presence.now-playing'
 import { Route as ApiProfilesCheckHandleRouteImport } from './routes/api_.profiles.check-handle'
 import { Route as ApiPublicAvatarRouteImport } from './routes/api_.public.avatar'
@@ -1524,6 +1526,16 @@ const ApiBunqCheckStatusRoute = ApiBunqCheckStatusRouteImport.update({
   path: '/api/bunq/check-status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiIngestGridRoute = ApiIngestGridRouteImport.update({
+  id: '/api_/ingest/grid',
+  path: '/api/ingest/grid',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiIngestOmniRoute = ApiIngestOmniRouteImport.update({
+  id: '/api_/ingest/omni',
+  path: '/api/ingest/omni',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPresenceNowPlayingRoute = ApiPresenceNowPlayingRouteImport.update({
   id: '/api_/presence/now-playing',
   path: '/api/presence/now-playing',
@@ -2545,6 +2557,8 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/badge/verify': typeof ApiBadgeVerifyRoute
   '/api/bunq/check-status': typeof ApiBunqCheckStatusRoute
+  '/api/ingest/grid': typeof ApiIngestGridRoute
+  '/api/ingest/omni': typeof ApiIngestOmniRoute
   '/api/presence/now-playing': typeof ApiPresenceNowPlayingRoute
   '/api/profiles/check-handle': typeof ApiProfilesCheckHandleRoute
   '/api/public/avatar': typeof ApiPublicAvatarRoute
@@ -2898,6 +2912,8 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/badge/verify': typeof ApiBadgeVerifyRoute
   '/api/bunq/check-status': typeof ApiBunqCheckStatusRoute
+  '/api/ingest/grid': typeof ApiIngestGridRoute
+  '/api/ingest/omni': typeof ApiIngestOmniRoute
   '/api/presence/now-playing': typeof ApiPresenceNowPlayingRoute
   '/api/profiles/check-handle': typeof ApiProfilesCheckHandleRoute
   '/api/public/avatar': typeof ApiPublicAvatarRoute
@@ -3268,6 +3284,8 @@ export interface FileRoutesById {
   '/api_/auth/$': typeof ApiAuthSplatRoute
   '/api_/badge/verify': typeof ApiBadgeVerifyRoute
   '/api_/bunq/check-status': typeof ApiBunqCheckStatusRoute
+  '/api_/ingest/grid': typeof ApiIngestGridRoute
+  '/api_/ingest/omni': typeof ApiIngestOmniRoute
   '/api_/presence/now-playing': typeof ApiPresenceNowPlayingRoute
   '/api_/profiles/check-handle': typeof ApiProfilesCheckHandleRoute
   '/api_/public/avatar': typeof ApiPublicAvatarRoute
@@ -3639,6 +3657,8 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/badge/verify'
     | '/api/bunq/check-status'
+    | '/api/ingest/grid'
+    | '/api/ingest/omni'
     | '/api/presence/now-playing'
     | '/api/profiles/check-handle'
     | '/api/public/avatar'
@@ -3992,6 +4012,8 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/badge/verify'
     | '/api/bunq/check-status'
+    | '/api/ingest/grid'
+    | '/api/ingest/omni'
     | '/api/presence/now-playing'
     | '/api/profiles/check-handle'
     | '/api/public/avatar'
@@ -4361,6 +4383,8 @@ export interface FileRouteTypes {
     | '/api_/auth/$'
     | '/api_/badge/verify'
     | '/api_/bunq/check-status'
+    | '/api_/ingest/grid'
+    | '/api_/ingest/omni'
     | '/api_/presence/now-playing'
     | '/api_/profiles/check-handle'
     | '/api_/public/avatar'
@@ -4618,6 +4642,8 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiBadgeVerifyRoute: typeof ApiBadgeVerifyRoute
   ApiBunqCheckStatusRoute: typeof ApiBunqCheckStatusRoute
+  ApiIngestGridRoute: typeof ApiIngestGridRoute
+  ApiIngestOmniRoute: typeof ApiIngestOmniRoute
   ApiPresenceNowPlayingRoute: typeof ApiPresenceNowPlayingRoute
   ApiProfilesCheckHandleRoute: typeof ApiProfilesCheckHandleRoute
   ApiPublicAvatarRoute: typeof ApiPublicAvatarRoute
@@ -6271,6 +6297,20 @@ declare module '@tanstack/react-router' {
       path: '/api/bunq/check-status'
       fullPath: '/api/bunq/check-status'
       preLoaderRoute: typeof ApiBunqCheckStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api_/ingest/grid': {
+      id: '/api_/ingest/grid'
+      path: '/api/ingest/grid'
+      fullPath: '/api/ingest/grid'
+      preLoaderRoute: typeof ApiIngestGridRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api_/ingest/omni': {
+      id: '/api_/ingest/omni'
+      path: '/api/ingest/omni'
+      fullPath: '/api/ingest/omni'
+      preLoaderRoute: typeof ApiIngestOmniRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api_/presence/now-playing': {
@@ -7965,6 +8005,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiBadgeVerifyRoute: ApiBadgeVerifyRoute,
   ApiBunqCheckStatusRoute: ApiBunqCheckStatusRoute,
+  ApiIngestGridRoute: ApiIngestGridRoute,
+  ApiIngestOmniRoute: ApiIngestOmniRoute,
   ApiPresenceNowPlayingRoute: ApiPresenceNowPlayingRoute,
   ApiProfilesCheckHandleRoute: ApiProfilesCheckHandleRoute,
   ApiPublicAvatarRoute: ApiPublicAvatarRoute,
