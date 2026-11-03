@@ -182,16 +182,16 @@ export function SocialGridBlockSettings({
                       />
                     </label>
                     <div className="space-y-1">
-                      <label className="block space-y-1 text-[10px] text-muted-foreground">Contenttype
+                      <label className="block space-y-1 text-[10px] text-muted-foreground">{t("omni.type")}
                         <Select value={item.contentType ?? "social"} onValueChange={(value) => { const contentType = OMNI_CONTENT_TYPES.find((type) => type === value); if (contentType) patchItem(item.id, { contentType }); }}>
-                          <SelectTrigger aria-label="Contenttype"><SelectValue /></SelectTrigger>
-                          <SelectContent>{OMNI_CONTENT_TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+                          <SelectTrigger aria-label={t("omni.type")}><SelectValue /></SelectTrigger>
+                          <SelectContent>{OMNI_CONTENT_TYPES.map((type) => <SelectItem key={type} value={type}>{t(`studio.grid.type.${type}`)}</SelectItem>)}</SelectContent>
                         </Select>
                       </label>
-                      <Input aria-label="Media-context" placeholder="5 min · 45:00 · Seizoen 1" maxLength={40} value={item.metaTag ?? ""} onChange={(event) => patchItem(item.id, { metaTag: event.target.value || undefined })} />
+                      <Input aria-label={t("omni.meta")} placeholder={t("omni.metaPlaceholder")} maxLength={40} value={item.metaTag ?? ""} onChange={(event) => patchItem(item.id, { metaTag: event.target.value || undefined })} />
                       <label className="flex items-center justify-between gap-2 py-2">
-                        <span className="text-[11px] font-medium text-foreground">Markeer als Hero (Uitgelicht)</span>
-                        <Switch aria-label="Markeer als Hero" checked={item.isHero === true} onCheckedChange={(isHero) => patchItem(item.id, { isHero })} />
+                        <span className="text-[11px] font-medium text-foreground">{t("omni.hero")}</span>
+                        <Switch aria-label={t("omni.heroLabel")} checked={item.isHero === true} onCheckedChange={(isHero) => patchItem(item.id, { isHero })} />
                       </label>
                       <span className="text-[10px] font-medium text-muted-foreground">{t("studio.grid.platformLabel")}</span>
                       <div className="grid grid-cols-4 gap-1">
