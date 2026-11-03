@@ -22,7 +22,23 @@ export const Route = createFileRoute("/api_/public/gallery-media")({
         if (!PATH_RE.test(path)) return new Response("Invalid path", { status: 400 });
 
         try {
-          const { sql } = await import("@/lib/neon");
+          const { sql, withDbContext } = await import("@/lib/neon");
+          if (path.split("/")[1]?.startsWith("omni-")) {
+            const { currentUser } = await import("@/lib/auth/session.server");
+            const user = await currentUser();
+            const rows = await withDbContext({ userId: user?.id ?? null, workspaceId: null }, () =>
+              sql.query("select * from public.rout_omni_media($1,$2::uuid)", [path, user?.id ?? null]),
+            ) as { object_key: string; content_type: string }[];
+            const media = rows[0];
+            if (!media) return new Response("Not found", { status: 404 });
+            const { getObject } = await import("@/lib/storage/s3.server");
+            const object = await getObject("client", media.object_key);
+            if (!object.ok) return new Response("Not found", { status: 404 });
+            return new Response(object.body, { headers: {
+              "content-type": media.content_type, "cache-control": "private, no-store",
+              "x-content-type-options": "nosniff",
+            } });
+          }
           const rows = (await sql.query(
             `select content_type, data from public.gallery_objects where path = $1`,
             [path],

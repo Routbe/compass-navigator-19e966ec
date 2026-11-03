@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, Copy, Link2, LoaderCircle, Plus, RefreshCw, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { enqueueOmniUrl, listOmniIngestJobs, retryOmniJob, rotateIngestToken } from "@/lib/omni-ingest.functions";
+import { enqueueOmniUrl, getOmniRealtimeTicket, listOmniIngestJobs, retryOmniJob, rotateIngestToken } from "@/lib/omni-ingest.functions";
 import { readyOmniItem } from "@/lib/omni-ingest";
 import type { SocialGridItem } from "@/lib/social-grid";
 
@@ -13,9 +13,45 @@ export function OmniIngestPanel({ onAdd, full }: { onAdd: (item: SocialGridItem)
   const [copied, setCopied] = useState(false);
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
-  // This inbox is a secondary editor tool. Poll only while there are unfinished jobs.
-  const jobs = useQuery({ queryKey: ["omni-ingest-jobs"], queryFn: () => listOmniIngestJobs(), retry: false,
-    refetchInterval: (query) => query.state.data?.some((job) => job.status === "queued" || job.status === "processing") ? 2500 : false });
+  const [realtimeUnavailable, setRealtimeUnavailable] = useState(false);
+  const jobs = useQuery({ queryKey: ["omni-ingest-jobs"], queryFn: () => listOmniIngestJobs(), retry: false });
+  const refetchJobs = jobs.refetch;
+  useEffect(() => {
+    const abort = new AbortController();
+    let reconnect: ReturnType<typeof setTimeout> | undefined;
+    let failures = 0;
+    async function connect() {
+      try {
+        const ticket = await getOmniRealtimeTicket();
+        if (abort.signal.aborted) return;
+        if (!ticket.configured) { setRealtimeUnavailable(true); return; }
+        // POST keeps the ticket out of URLs, access logs and referrers.
+        const response = await fetch(ticket.url, { method: "POST", headers: { Authorization: `Bearer ${ticket.token}` }, signal: abort.signal });
+        if (!response.ok || !response.body) throw new Error("events_unavailable");
+        setRealtimeUnavailable(false); failures = 0;
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder(); let buffer = "";
+        try {
+          for (;;) {
+            const chunk = await reader.read(); if (chunk.done) break;
+            buffer += decoder.decode(chunk.value, { stream: true });
+            let boundary = buffer.indexOf("\n\n");
+            while (boundary >= 0) {
+              const frame = buffer.slice(0, boundary); buffer = buffer.slice(boundary + 2);
+              // Read back through existing authenticated functions, never trust event data.
+              if (/^event: (job|connected)$/m.test(frame)) void refetchJobs();
+              boundary = buffer.indexOf("\n\n");
+            }
+          }
+        } finally { reader.releaseLock(); }
+      } catch {
+        if (!abort.signal.aborted) { setRealtimeUnavailable(true); failures++; }
+      }
+      if (!abort.signal.aborted) reconnect = setTimeout(() => { void connect(); }, Math.min(30_000, 1000 * 2 ** failures));
+    }
+    void connect();
+    return () => { abort.abort(); if (reconnect) clearTimeout(reconnect); };
+  }, [refetchJobs]);
   const enqueue = useMutation({ mutationFn: () => enqueueOmniUrl({ data: { target_url: url } }),
     onMutate: () => setError(""), onSuccess: async (result) => {
       if (!result.ok) { setError("Importeren lukt momenteel niet."); return; }
@@ -36,6 +72,7 @@ export function OmniIngestPanel({ onAdd, full }: { onAdd: (item: SocialGridItem)
     {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
     {enqueue.isPending && <div role="status" className="h-20 animate-pulse rounded-md bg-muted motion-reduce:animate-none" aria-label="Import wordt aangevraagd" />}
     {jobs.isError && <p role="status" className="text-xs text-muted-foreground">Content-inbox is nog niet beschikbaar.</p>}
+    {realtimeUnavailable && <div className="flex items-center gap-2"><p role="status" className="text-xs text-muted-foreground">Live-updates zijn niet beschikbaar.</p><Button size="icon" variant="ghost" title="Inbox vernieuwen" aria-label="Inbox vernieuwen" onClick={() => void jobs.refetch()}><RefreshCw className="h-4 w-4" /></Button></div>}
     <ul className="space-y-2">
       {jobs.data?.filter((job) => !added.has(job.id)).map((job) => {
         const item = readyOmniItem(job);

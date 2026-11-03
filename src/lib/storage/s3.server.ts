@@ -104,6 +104,12 @@ export async function deleteObject(kind: BucketKind, key: string): Promise<void>
   }
 }
 
+/** First-party streaming: do not redirect a visitor to the storage provider. */
+export async function getObject(kind: BucketKind, key: string): Promise<Response> {
+  const { client, bucket, endpoint } = resolve(kind);
+  return client.fetch(`${endpoint}/${bucket}/${encodeKey(key)}`, { method: "GET" });
+}
+
 /** Short-lived presigned GET for private objects. */
 export async function presignedGetUrl(kind: BucketKind, key: string, expiresSeconds = 300): Promise<string> {
   const { client, bucket, endpoint } = resolve(kind);

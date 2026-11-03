@@ -1,0 +1,60 @@
+# ROUT Omni persistent daemon
+
+This service is implemented independently of the TanStack request runtime. It
+does not deploy with Lovable's webapp. Deploy it on a persistent European Linux
+VPS/container host; put `/events` behind HTTPS with proxy buffering disabled.
+
+## Provisioning (required before production use)
+
+1. Review/apply `db/0188_omni_ingest.sql`, then `db/0189_omni_worker.sql` via a DBA.
+   The second migration renames the existing table without discarding jobs.
+2. A DBA creates a dedicated LOGIN with a securely chosen password and grants
+   only `rout_omni_worker`. Do not use a database owner, BYPASSRLS role or
+   console-created unrestricted Neon role. This service fails closed on unsafe
+   roles. Do not put connection strings in chat or source.
+3. Set `OMNI_DATABASE_URL` **on the VPS only** to an unpooled TCP PostgreSQL
+   endpoint. A transaction pooler and Lovable's Neon HTTP connector cannot
+   maintain `LISTEN`. No connector credential is used as a database URL.
+4. Set these worker deployment environment values:
+   - `OMNI_REALTIME_SECRET`: random shared secret, at least 32 characters.
+   - `OMNI_APP_ORIGIN`: exact HTTPS origin of the ROUT webapp.
+   - `OMNI_EVENTS_URL`: HTTPS daemon URL ending in `/events`.
+   - `SCALEWAY_ACCESS_KEY`, `SCALEWAY_SECRET_KEY`, `SCALEWAY_CLIENT_BUCKET`.
+   - Optional `SCALEWAY_REGION` (`fr-par` default), `SCALEWAY_ENDPOINT`, `PORT`.
+   Keep the client bucket private; restrict its keys to `users/`. The worker
+   requires PUT/DELETE and the webapp requires GET to the same bucket.
+5. Configure the same `OMNI_REALTIME_SECRET`, `OMNI_EVENTS_URL` and Scaleway
+   storage settings in the webapp's server environment. No frontend secret.
+6. Run `bun install --cwd worker`, then `bun run worker/main.ts`. FFmpeg must
+   be installed. For Docker, build from the repository root with
+   `docker build -f worker/Dockerfile .`; use a clean staging context excluding
+   repository metadata, environment files and dependency folders.
+
+## Guarantees and limits
+
+- INSERT/status triggers notify `new_omni_job` and `omni_job_changed` at commit.
+- Atomic SKIP LOCKED claims release row locks before downloads/conversion.
+- Heartbeats every 30 seconds; jobs inactive for five minutes are recovered.
+- Three attempts, delayed retries, lease-fenced writes and lease-specific keys.
+- A 30-second recovery sweep also catches delayed retries and missed messages;
+  ordinary dispatch and Studio updates are event-driven, not inbox polling.
+- Reconnecting SSE reads the authenticated inbox to catch missed events. The
+  ticket expires after five minutes and is renewed through the webapp session.
+- Native code performs bounded source fetching, WebP conversion and six-second
+  muted WebM previews for directly downloadable MP4/WebM. It does not bypass
+  anti-bot challenges, render arbitrary SPAs or download provider player streams.
+- There is no serverless job execution deadline. Source requests have safety
+  deadlines and size limits; container resource limits remain necessary.
+- The API waits for authorization and durable insertion, not media work. A
+  **<50ms end-to-end response is not guaranteed** with remote HTTP database
+  transport or cold starts; measure in the deployed environment.
+- This does not certify Neon/Lovable or the overall stack as 100% sovereign.
+
+## Acceptance check after deployment
+
+Sign into Studio, import a real HTTPS URL, verify `202/job_id`, observe the
+SSE-driven ready card, add it to the private draft and confirm anonymous media
+access is denied. Publish through the existing profile flow; verify that the
+same first-party media URL renders for visitors. Kill a worker during a job,
+restart and verify five-minute recovery. Run a second worker and confirm only
+one lease wins per job. No live deployment or credentials are supplied here.

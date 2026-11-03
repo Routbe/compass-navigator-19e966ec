@@ -1,0 +1,7 @@
+# Use: docker build -f worker/Dockerfile --ignorefile worker/.dockerignore .
+**/.git
+**/.env*
+**/node_modules
+**/dist
+**/.output
+**/.lovable
