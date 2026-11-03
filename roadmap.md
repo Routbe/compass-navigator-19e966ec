@@ -5,14 +5,15 @@
 - [ ] Complete account, email, payment, and other external-service setup (requires provider settings; authenticated flows remain unverified).
 
 ## Omni-Matrix
-- [ ] Finish sovereign-only manual grid media, semantic draft catalog and compatibility endpoint paths.
-- [ ] Add safe standalone browser rendering for SPA metadata and optimistic Studio grid transitions.
-- [ ] Extend regression coverage and verify the available end-to-end flow without claiming undeployed services work.
+- [x] Finish sovereign-only manual grid media, semantic draft catalog and compatibility endpoint paths; UUID webhook tokens stay hashed.
+- [x] Implement sandbox-required optional SPA metadata rendering in the standalone daemon and optimistic Studio grid transitions.
+- [x] Extend regression coverage: local paths, catalog owner isolation, UUID webhook enqueue, uploads and SSE readback; live webhook paths reject unauthenticated callers.
+- [ ] Validate hardened SPA browser on deployment host: root-only sandbox cannot launch Chromium sandbox; requires non-root host with sandbox support.
 - [x] Audit existing ingestion, Studio controls, profile grid, storage and queue.
 - [x] Add Studio URL imports, job inbox, webhook-token controls, content-type/meta editing and Hero switch.
 - [x] Add bounded webhook bodies, guarded oEmbed discovery, local-media mapping and reduced-motion kinetic controls.
 - [x] Run 25 targeted tests and bunx tsgo --noEmit (exit 0); preview build succeeds.
-- [ ] Activate ingestion schema in Neon: existing migration 0188 is not applied; requires reviewed database migration execution.
+- [ ] Activate ingestion schema in Neon: schema read confirms 0188/0189 are not applied; review/apply 0188, 0189 and 0190, including explicit rename/role permissions.
 - [x] Replace request-lifetime processing with enqueue-only web handlers and public.omni_jobs.
 - [x] Add standalone PostgreSQL LISTEN/NOTIFY daemon with SKIP LOCKED claims, leases, retries and five-minute zombie recovery.
 - [x] Move extraction and Sharp/FFmpeg conversion into the daemon; use private Scaleway S3 and metadata-only job paths.

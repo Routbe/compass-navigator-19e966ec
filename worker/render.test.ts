@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { renderedMetadata } from "./render";
 
 // Uses the installed sandbox browser; no real network or external data.
-test.skipIf(!process.env.CHROMIUM_PATH)("renders SPA metadata while blocking private-network subrequests", async () => {
+test.skipIf(!process.env.CHROMIUM_PATH || process.getuid?.() === 0)("renders SPA metadata while blocking private-network subrequests", async () => {
   const urls: string[] = [];
   const transport = async (url: string) => {
     urls.push(url);

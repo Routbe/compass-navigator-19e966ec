@@ -61,6 +61,9 @@ VPS/container host; put `/events` behind HTTPS with proxy buffering disabled.
   Chromium sandboxing is explicitly enabled; run as a non-root user on a host
   with user namespaces/sandbox support. If unavailable, extraction falls back
   to static metadata instead of disabling the sandbox.
+  The sandbox's root-only environment cannot validate this hardened browser
+  launch; run `CHROMIUM_PATH=... bun test render.test.ts` as a non-root worker
+  user on the deployment host before enabling approved render hosts.
 - `omni_matrix_items` is an owner-only semantic draft projection; `grid_items`
   and `ingest_tokens` are compatibility views. Public cards still use published
   snapshots. UUID webhook tokens are stored only as SHA-256 hashes, not plaintext
