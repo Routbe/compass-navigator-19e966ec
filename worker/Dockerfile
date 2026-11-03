@@ -1,4 +1,4 @@
-FROM oven/bun:1.3.10-debian
+FROM oven/bun:1.4.4-debian
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app

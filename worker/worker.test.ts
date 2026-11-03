@@ -2,6 +2,12 @@ import { test, expect } from "bun:test";
 import { publicAddress } from "./fetch";
 import { EventHub } from "./events";
 import { signOmniTicket } from "../src/lib/omni-realtime";
+import { webm } from "./media";
+import sharp from "sharp";
+import { spawnSync } from "node:child_process";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 test("source fetch rejects private and mapped private addresses", () => {
   for (const address of ["127.0.0.1", "10.0.0.1", "169.254.169.254", "::1", "::ffff:127.0.0.1", "fc00::1"]) expect(publicAddress(address)).toBe(false);
@@ -27,4 +33,18 @@ test("SSE rejects missing tickets and foreign origins", async () => {
   const hub = new EventHub();
   expect((await hub.handle(new Request("https://events.rout.be/events", { method: "POST", headers: { Origin: "https://rout.be" } }), "https://rout.be", "https://events.rout.be", "test-only-event-secret-more-than-32-chars")).status).toBe(401);
   expect((await hub.handle(new Request("https://events.rout.be/events", { method: "POST", headers: { Origin: "https://evil.example" } }), "https://rout.be", "https://events.rout.be", "test-only-event-secret-more-than-32-chars")).status).toBe(403);
+});
+test("native conversion emits a real WebP image and muted bounded WebM", async () => {
+  const image = await sharp({ create: { width: 40, height: 30, channels: 3, background: "red" } }).png().toBuffer();
+  const result = await sharp(image).webp().toBuffer();
+  expect((await sharp(result).metadata()).format).toBe("webp");
+  const dir = await mkdtemp(join(tmpdir(), "omni-conversion-test-"));
+  try {
+    const input = join(dir, "input.mp4");
+    const generated = spawnSync("ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "color=c=red:s=64x64:d=1", "-c:v", "libx264", input]);
+    expect(generated.status).toBe(0);
+    const output = await webm(await readFile(input));
+    expect([...output.slice(0, 4)]).toEqual([0x1a, 0x45, 0xdf, 0xa3]);
+    expect(output.length).toBeLessThan(4 * 1024 * 1024);
+  } finally { await rm(dir, { recursive: true, force: true }); }
 });
