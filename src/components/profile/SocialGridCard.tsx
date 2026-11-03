@@ -28,20 +28,35 @@ const BADGE_ICON: Record<OmniContentType, typeof Play> = {
 function Tile({ item }: { item: SocialGridItem }) {
   const { t } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
+  const tile = useRef<HTMLAnchorElement & HTMLDivElement>(null);
+  const playback = useRef(0);
   const [kinetic, setKinetic] = useState(false);
   const kineticUrl = item.kineticPreviewUrl && isLocalOmniMediaUrl(item.kineticPreviewUrl) ? item.kineticPreviewUrl : null;
   const startKinetic = () => {
     if (!kineticUrl || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const attempt = ++playback.current;
     setKinetic(true);
-    void video.current?.play().catch(() => setKinetic(false));
+    void video.current?.play().then(() => { if (attempt !== playback.current) video.current?.pause(); }).catch(() => { if (attempt === playback.current) setKinetic(false); });
   };
   const stopKinetic = () => {
+    playback.current++;
     setKinetic(false);
     video.current?.pause();
   };
   const pressTimer = useRef<number | undefined>(undefined);
   const longPressed = useRef(false);
-  useEffect(() => () => { window.clearTimeout(pressTimer.current); }, []);
+  const pressOrigin = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const stop = () => { playback.current++; window.clearTimeout(pressTimer.current); video.current?.pause(); setKinetic(false); };
+    const changed = () => { if (preference.matches) stop(); };
+    const visibility = () => { if (document.hidden) stop(); };
+    preference.addEventListener("change", changed);
+    document.addEventListener("visibilitychange", visibility);
+    const observer = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver((entries) => { if (entries.some((entry) => !entry.isIntersecting)) stop(); });
+    if (tile.current) observer?.observe(tile.current);
+    return () => { stop(); preference.removeEventListener("change", changed); document.removeEventListener("visibilitychange", visibility); observer?.disconnect(); };
+  }, [kineticUrl]);
   const BadgeIcon = item.contentType ? BADGE_ICON[item.contentType] : null;
   const router = useRouter();
   const [loaded, setLoaded] = useState(false);
@@ -90,7 +105,7 @@ function Tile({ item }: { item: SocialGridItem }) {
           preload="none"
           onError={stopKinetic}
           aria-hidden
-          className={cn("pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-300", kinetic ? "opacity-100" : "opacity-0")}
+          className={cn("pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-300 motion-reduce:transition-none", kinetic ? "opacity-100" : "opacity-0")}
         />
       )}
       {BadgeIcon && item.contentType && (
@@ -118,8 +133,8 @@ function Tile({ item }: { item: SocialGridItem }) {
     );
   const hover = kineticUrl
     ? { onPointerEnter: (event: React.PointerEvent) => { if (event.pointerType === "mouse") startKinetic(); }, onPointerLeave: stopKinetic, onPointerCancel: () => { window.clearTimeout(pressTimer.current); stopKinetic(); }, onContextMenu: (e: MouseEvent) => e.preventDefault(),
-        onTouchStart: () => { longPressed.current = false; pressTimer.current = window.setTimeout(() => { longPressed.current = true; startKinetic(); }, 350); },
-        onTouchMove: () => { window.clearTimeout(pressTimer.current); stopKinetic(); },
+        onTouchStart: (event: React.TouchEvent) => { window.clearTimeout(pressTimer.current); longPressed.current = false; const touch = event.touches[0]; pressOrigin.current = touch ? { x: touch.clientX, y: touch.clientY } : null; if (event.touches.length === 1) pressTimer.current = window.setTimeout(() => { longPressed.current = true; startKinetic(); }, 350); },
+        onTouchMove: (event: React.TouchEvent) => { const touch = event.touches[0]; const origin = pressOrigin.current; if (!touch || !origin || Math.hypot(touch.clientX - origin.x, touch.clientY - origin.y) > 10) { window.clearTimeout(pressTimer.current); stopKinetic(); } },
         onTouchEnd: () => { window.clearTimeout(pressTimer.current); stopKinetic(); }, onTouchCancel: () => { window.clearTimeout(pressTimer.current); stopKinetic(); } }
     : {};
 
@@ -127,11 +142,11 @@ function Tile({ item }: { item: SocialGridItem }) {
     if (longPressed.current) { event.preventDefault(); longPressed.current = false; return; }
     if (internal) onInternal(event);
   };
-  if (!target) return <div className={tileClass} {...hover}>{body}</div>;
+  if (!target) return <div ref={tile} className={tileClass} {...hover}>{body}</div>;
   return internal ? (
-    <a href={target} onClick={onClick} aria-label={label} className={tileClass} {...hover}>{body}</a>
+    <a ref={tile} href={target} onClick={onClick} aria-label={label} className={tileClass} {...hover}>{body}</a>
   ) : (
-    <a href={target} onClick={onClick} target="_blank" rel="noopener noreferrer nofollow" aria-label={t("studio.grid.openExternal", { label })} className={tileClass} {...hover}>
+    <a ref={tile} href={target} onClick={onClick} target="_blank" rel="noopener noreferrer nofollow" aria-label={t("studio.grid.openExternal", { label })} className={tileClass} {...hover}>
       {body}
     </a>
   );

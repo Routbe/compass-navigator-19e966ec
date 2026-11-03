@@ -43,3 +43,29 @@ it("SSE completion triggers authenticated readback without periodic polling or a
     expect(fetch).toHaveBeenCalledWith("https://events.example.com/events", expect.objectContaining({ method: "POST", headers: { Authorization: "Bearer test-ticket" } }));
   } finally { view.unmount(); controller?.close(); fetch.mockRestore(); }
 });
+it("keeps accepted jobs visible across stale readback until authoritative completion arrives", async () => {
+  mocks.enqueue.mockResolvedValue({ ok: true, jobId: job.id });
+  const view = mount();
+  await waitFor(() => expect(mocks.list).toHaveBeenCalled());
+  fireEvent.change(screen.getByLabelText("Content-URL"), { target: { value: job.sourceUrl } });
+  fireEvent.click(screen.getByRole("button", { name: "Link importeren" }));
+  await waitFor(() => expect(mocks.list.mock.calls.length).toBeGreaterThan(1));
+  expect(screen.getByRole("status", { name: "Import wordt verwerkt" })).toBeTruthy();
+  mocks.list.mockResolvedValue([job]);
+  fireEvent.click(await screen.findByRole("button", { name: "Inbox vernieuwen" }));
+  expect(await screen.findByRole("button", { name: "Kaart toevoegen" })).toBeTruthy();
+  expect(screen.queryByRole("status", { name: "Import wordt verwerkt" })).toBeNull();
+  expect(view.onAdd).not.toHaveBeenCalled();
+  view.unmount();
+});
+it("exposes manual readback when an established stream closes normally", async () => {
+  let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
+  const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(new ReadableStream<Uint8Array>({ start(value) { controller = value; } })));
+  mocks.ticket.mockResolvedValue({ configured: true, url: "https://events.example.com/events", token: "test-ticket" });
+  const view = mount();
+  try {
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    await act(async () => { controller?.close(); });
+    expect(await screen.findByRole("button", { name: "Inbox vernieuwen" })).toBeTruthy();
+  } finally { view.unmount(); fetch.mockRestore(); }
+});
