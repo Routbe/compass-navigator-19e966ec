@@ -171,3 +171,46 @@ export interface OmniJob {
 }
 
 export const galleryMediaUrl = (path: string) => `/api/public/gallery-media?path=${encodeURIComponent(path)}`;
+
+/** Ingested media must point at a persisted ROUT object, never a remote proxy. */
+export function isLocalOmniMediaUrl(value: string): boolean {
+  try {
+    if (!value.startsWith("/api/public/gallery-media?")) return false;
+    const url = new URL(value, "https://rout.be");
+    return url.pathname === "/api/public/gallery-media" &&
+      /^[0-9a-f-]{36}\/omni-[A-Za-z0-9._-]{1,120}$/.test(url.searchParams.get("path") ?? "") &&
+      [...url.searchParams.keys()].every((key) => key === "path") && !url.hash;
+  } catch { return false; }
+}
+
+export function readyOmniItem(job: OmniJob) {
+  if (job.status !== "ready" || !job.contentType || !job.mediaUrl || !isLocalOmniMediaUrl(job.mediaUrl)) return null;
+  return {
+    id: `omni_${job.id.replace(/-/g, "")}`,
+    mediaUrl: job.mediaUrl,
+    caption: job.title ?? undefined,
+    targetUrl: job.targetUrl ?? undefined,
+    contentType: job.contentType,
+    metaTag: job.metaTag ?? undefined,
+    kineticPreviewUrl: job.kineticPreviewUrl && isLocalOmniMediaUrl(job.kineticPreviewUrl) ? job.kineticPreviewUrl : undefined,
+    platform: "custom" as const,
+    isVideo: job.contentType === "program" || job.contentType === "short",
+    pinned: false,
+    isHero: false,
+    createdAt: job.createdAt,
+  };
+}
+
+/** Discover only an advertised HTTPS JSON oEmbed endpoint; the worker still SSRF-checks it. */
+export function discoverOEmbed(html: string, pageUrl: string): string | null {
+  for (const tag of html.slice(0, 300_000).match(/<link\b[^>]*>/gi) ?? []) {
+    if (!/type\s*=\s*["']application\/json\+oembed["']/i.test(tag)) continue;
+    const href = /href\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1];
+    if (!href) continue;
+    try {
+      const url = new URL(decode(href), pageUrl);
+      if (url.protocol === "https:" && !url.username && !url.password) return url.toString();
+    } catch { /* Ignore malformed discovery links. */ }
+  }
+  return null;
+}
