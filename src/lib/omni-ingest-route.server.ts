@@ -11,7 +11,7 @@ export function readIngestToken(request: Request): string | null {
   const auth = request.headers.get("authorization");
   const bearer = auth?.match(/^Bearer\s+(\S+)$/i)?.[1];
   const token = bearer ?? request.headers.get("x-rout-ingest-token") ?? new URL(request.url).searchParams.get("token");
-  return token && /^rout_ing_[0-9a-f]{64}$/.test(token) ? token : null;
+  return token && /^(rout_ing_[0-9a-f]{64}|[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/.test(token) ? token : null;
 }
 
 export async function handleIngestWebhook(request: Request): Promise<Response> {
@@ -53,10 +53,9 @@ export async function handleIngestWebhook(request: Request): Promise<Response> {
 
   const { sql, withDbContext } = await import("@/lib/neon");
   const { sha256Hex, enqueueOmniJob } = await import("@/lib/omni-ingest.server");
-  const owner = ((await sql`select public.rout_ingest_token_owner(${await sha256Hex(token)}) as id`) as { id: string | null }[])[0]?.id;
-  if (!owner) return json({ error: "unauthorized" }, 401);
-
   try {
+    const owner = ((await sql`select public.rout_ingest_token_owner(${await sha256Hex(token)}) as id`) as { id: string | null }[])[0]?.id;
+    if (!owner) return json({ error: "unauthorized" }, 401);
     const jobId = await withDbContext({ userId: owner, workspaceId: null }, () =>
       enqueueOmniJob({ userId: owner, source: "webhook", url: parsed.data.target_url, title: parsed.data.title, mediaUrl: parsed.data.media_url }),
     );

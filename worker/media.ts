@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { AwsClient } from "aws4fetch";
 import { classifyOmniUrl, discoverOEmbed, omniMetaTag, parseOpenGraph, youtubeId } from "../src/lib/omni-ingest";
 import { safeFetch } from "./fetch";
+import { renderedMetadata, renderEnabled } from "./render";
 
 export type ClaimedJob = { id: string; user_id: string; source_url: string; title_override: string | null; media_hint: string | null; lease_token: string };
 export type PreparedMedia = { title: string; type: string; meta: string | null; cover: Uint8Array; kinetic: Uint8Array | null };
@@ -42,7 +43,7 @@ export async function webm(bytes: Uint8Array): Promise<Uint8Array> {
     await new Promise<void>((resolve, reject) => {
       const child = spawn("ffmpeg", ["-nostdin", "-v", "error", "-protocol_whitelist", "file,pipe", "-i", input,
         "-t", "6", "-an", "-vf", "scale=640:360:force_original_aspect_ratio=decrease,fps=15", "-c:v", "libvpx-vp9",
-        "-b:v", "400k", "-threads", "2", "-f", "webm", output], { stdio: "ignore" });
+        "-b:v", "400k", "-threads", "2", "-f", "webm", output], { stdio: "ignore", timeout: 60000, killSignal: "SIGKILL" });
       child.on("error", reject); child.on("exit", (code) => code === 0 ? resolve() : reject(new Error("video_conversion_failed")));
     });
     const result = await readFile(output);
@@ -51,9 +52,13 @@ export async function webm(bytes: Uint8Array): Promise<Uint8Array> {
   } finally { await rm(dir, { recursive: true, force: true }); }
 }
 export async function prepare(job: ClaimedJob): Promise<PreparedMedia> {
-  const page = await safeFetch(job.source_url, 768 * 1024);
-  const html = /html|xml/i.test(page.type) ? page.bytes.toString("utf8") : "";
-  const og = parseOpenGraph(html, page.url);
+  const page = await safeFetch(job.source_url, 768 * 1024).catch(() => ({ bytes: Buffer.alloc(0), type: "", url: job.source_url }));
+  let html = /html|xml/i.test(page.type) ? page.bytes.toString("utf8") : "";
+  let og = parseOpenGraph(html, page.url);
+  if ((!og.image || !og.title) && renderEnabled(job.source_url)) {
+    try { html = await renderedMetadata(job.source_url); og = { ...og, ...Object.fromEntries(Object.entries(parseOpenGraph(html, job.source_url)).filter(([, value]) => value !== undefined)) }; }
+    catch { /* Safe static metadata / explicit media hints remain available. */ }
+  }
   const endpoint = discoverOEmbed(html, page.url);
   if (endpoint) {
     try {
@@ -62,6 +67,7 @@ export async function prepare(job: ClaimedJob): Promise<PreparedMedia> {
       const data = value as Record<string, unknown>;
       if (!og.title && typeof data.title === "string") og.title = data.title.slice(0, 150);
       if (!og.image && typeof data.thumbnail_url === "string") og.image = data.thumbnail_url;
+      if (!og.type && data.type === "video") og.type = "video.other";
     } catch { /* Optional discovery; never embeds remote HTML or executes scripts. */ }
   }
   const yt = youtubeId(job.source_url);

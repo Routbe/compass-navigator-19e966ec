@@ -7,11 +7,11 @@ import { ingestPayloadSchema, type OmniJob } from "@/lib/omni-ingest";
 /** Studio: returns immediately with a job id; the dedicated daemon processes the persisted job. */
 export const enqueueOmniUrl = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((input: unknown) => ingestPayloadSchema.pick({ target_url: true }).parse(input))
+  .inputValidator((input: unknown) => ingestPayloadSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ ok: boolean; jobId?: string; error?: string }> => {
     const { enqueueOmniJob } = await import("@/lib/omni-ingest.server");
     try {
-      return { ok: true, jobId: await enqueueOmniJob({ userId: context.userId, source: "studio", url: data.target_url }) };
+      return { ok: true, jobId: await enqueueOmniJob({ userId: context.userId, source: "studio", url: data.target_url, title: data.title, mediaUrl: data.media_url }) };
     } catch (e) {
       return { ok: false, error: (e as { status?: number }).status === 429 ? "rate_limited" : "failed" };
     }
@@ -29,7 +29,7 @@ export const dismissOmniJob = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { sql } = await import("@/lib/neon");
-    await sql`delete from public.omni_jobs where id=${data.id} and user_id=${context.userId}`;
+    await sql`delete from public.omni_jobs where id=${data.id} and user_id=${context.userId} and status='failed'`;
     return { ok: true };
   });
 
@@ -38,7 +38,7 @@ export const retryOmniJob = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { sql } = await import("@/lib/neon");
-    await sql`update public.omni_jobs set status='queued', attempts=0, error=null, updated_at=now()
+    await sql`update public.omni_jobs set status='queued', attempts=0, error=null, lease_token=null, next_attempt_at=now(), updated_at=now()
       where id=${data.id} and user_id=${context.userId} and status='failed'`;
     return { ok: true };
   });
@@ -55,8 +55,7 @@ export const getIngestTokenStatus = createServerFn({ method: "GET" })
 export const rotateIngestToken = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .handler(async ({ context }): Promise<{ token: string }> => {
-    const bytes = crypto.getRandomValues(new Uint8Array(32));
-    const token = `rout_ing_${[...bytes].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+    const token = crypto.randomUUID();
     const { sha256Hex } = await import("@/lib/omni-ingest.server");
     const { sql } = await import("@/lib/neon");
     const hash = await sha256Hex(token);

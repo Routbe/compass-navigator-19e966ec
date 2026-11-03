@@ -5,7 +5,7 @@ import { CalendarDays, Clapperboard, Headphones, Newspaper, Pin, Play, Smartphon
 import type { OmniContentType } from "@/lib/omni-ingest";
 import { isLocalOmniMediaUrl } from "@/lib/omni-ingest";
 
-import { galleryImageSrc } from "@/lib/image-proxy-rules";
+import { isSocialGridMediaUrl } from "@/lib/social-grid";
 import {
   isInternalSocialGridTarget,
   orderedSocialGridItems,
@@ -40,12 +40,14 @@ function Tile({ item }: { item: SocialGridItem }) {
     video.current?.pause();
   };
   const pressTimer = useRef<number | undefined>(undefined);
+  const longPressed = useRef(false);
   useEffect(() => () => { window.clearTimeout(pressTimer.current); }, []);
   const BadgeIcon = item.contentType ? BADGE_ICON[item.contentType] : null;
   const router = useRouter();
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
-  const src = galleryImageSrc(item.mediaUrl);
+  const src = isSocialGridMediaUrl(item.mediaUrl) ? item.mediaUrl : null;
+  useEffect(() => { setLoaded(false); setFailed(false); }, [src]);
   const showCaption = Boolean(item.caption) && (Boolean(item.contentType) || item.platform === "article" || item.platform === "custom");
   const label = item.caption || t(`studio.grid.platform.${item.platform}`);
   const target = item.targetUrl;
@@ -66,12 +68,14 @@ function Tile({ item }: { item: SocialGridItem }) {
           src={src}
           alt={item.caption ?? ""}
           loading="lazy"
+          width={item.isHero ? 800 : 400}
+          height={400}
           decoding="async"
           draggable={false}
           onLoad={() => setLoaded(true)}
           onError={() => setFailed(true)}
           className={cn(
-            "h-full w-full object-cover transition-[opacity,transform,filter] duration-500 group-hover:scale-[1.04]",
+            "h-full w-full object-cover transition-[opacity,transform,filter] duration-500 group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100",
             loaded ? "scale-100 opacity-100 blur-0" : "scale-105 opacity-0 blur-md",
           )}
         />
@@ -84,6 +88,7 @@ function Tile({ item }: { item: SocialGridItem }) {
           loop
           playsInline
           preload="none"
+          onError={stopKinetic}
           aria-hidden
           className={cn("pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-300", kinetic ? "opacity-100" : "opacity-0")}
         />
@@ -108,20 +113,25 @@ function Tile({ item }: { item: SocialGridItem }) {
 
   const tileClass =
     cn(
-      "group relative block w-full overflow-hidden rounded-xl bg-current/5 outline-none transition-transform duration-200 ease-out active:scale-95 focus-visible:ring-2 focus-visible:ring-current [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent] motion-reduce:transition-none",
+      "group relative block w-full overflow-hidden rounded-lg bg-current/5 outline-none transition-transform duration-200 ease-out active:scale-95 focus-visible:ring-2 focus-visible:ring-current [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent] motion-reduce:transition-none motion-reduce:active:scale-100",
       item.isHero ? "aspect-[2/1] sm:aspect-[2/1]" : "aspect-square",
     );
   const hover = kineticUrl
     ? { onPointerEnter: (event: React.PointerEvent) => { if (event.pointerType === "mouse") startKinetic(); }, onPointerLeave: stopKinetic, onPointerCancel: () => { window.clearTimeout(pressTimer.current); stopKinetic(); }, onContextMenu: (e: MouseEvent) => e.preventDefault(),
-        onTouchStart: () => { pressTimer.current = window.setTimeout(startKinetic, 350); },
+        onTouchStart: () => { longPressed.current = false; pressTimer.current = window.setTimeout(() => { longPressed.current = true; startKinetic(); }, 350); },
+        onTouchMove: () => { window.clearTimeout(pressTimer.current); stopKinetic(); },
         onTouchEnd: () => { window.clearTimeout(pressTimer.current); stopKinetic(); }, onTouchCancel: () => { window.clearTimeout(pressTimer.current); stopKinetic(); } }
     : {};
 
+  const onClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (longPressed.current) { event.preventDefault(); longPressed.current = false; return; }
+    if (internal) onInternal(event);
+  };
   if (!target) return <div className={tileClass} {...hover}>{body}</div>;
   return internal ? (
-    <a href={target} onClick={onInternal} aria-label={label} className={tileClass} {...hover}>{body}</a>
+    <a href={target} onClick={onClick} aria-label={label} className={tileClass} {...hover}>{body}</a>
   ) : (
-    <a href={target} target="_blank" rel="noopener noreferrer nofollow" aria-label={t("studio.grid.openExternal", { label })} className={tileClass} {...hover}>
+    <a href={target} onClick={onClick} target="_blank" rel="noopener noreferrer nofollow" aria-label={t("studio.grid.openExternal", { label })} className={tileClass} {...hover}>
       {body}
     </a>
   );
@@ -136,7 +146,7 @@ export function SocialGridCard({ config, style }: { config: SocialGridConfig; st
       style={style}
       className="social-grid-section w-full select-none overflow-hidden p-3 text-left [touch-action:manipulation] sm:p-4"
     >
-      {config.title.trim() !== "" && <h3 className="mb-3 px-1 text-sm font-semibold tracking-tight">{config.title}</h3>}
+      {config.title.trim() !== "" && <h3 className="mb-3 px-1 text-sm font-semibold">{config.title}</h3>}
       <ul className="grid grid-flow-row-dense grid-cols-2 gap-1.5 overscroll-contain sm:grid-cols-3 sm:gap-2">
         {items.map((item) => (
           <li key={item.id} className={item.isHero ? "col-span-2" : undefined}>

@@ -6,7 +6,8 @@ VPS/container host; put `/events` behind HTTPS with proxy buffering disabled.
 
 ## Provisioning (required before production use)
 
-1. Review/apply `db/0188_omni_ingest.sql`, then `db/0189_omni_worker.sql` via a DBA.
+1. Review/apply `db/0188_omni_ingest.sql`, then `db/0189_omni_worker.sql` and
+   `db/0190_omni_semantic_catalog.sql` via a DBA (0184 draft index must exist).
    The second migration renames the existing table without discarding jobs.
 2. A DBA creates a dedicated LOGIN with a securely chosen password and grants
    only `rout_omni_worker`. Do not use a database owner, BYPASSRLS role or
@@ -46,8 +47,29 @@ VPS/container host; put `/events` behind HTTPS with proxy buffering disabled.
 - Reconnecting SSE reads the authenticated inbox to catch missed events. The
   ticket expires after five minutes and is renewed through the webapp session.
 - Native code performs bounded source fetching, WebP conversion and six-second
-  muted WebM previews for directly downloadable MP4/WebM. It does not bypass
-  anti-bot challenges, render arbitrary SPAs or download provider player streams.
+  muted WebM previews for directly downloadable MP4/WebM. FFmpeg is killed after
+  60 seconds to prevent malformed inputs monopolizing the daemon.
+- Optional SPA rendering: set `OMNI_RENDER_HOSTS` to comma-separated exact
+  approved hostnames and install Chromium (`CHROMIUM_PATH` optional). Docker
+  includes Chromium. All network resources are fulfilled through DNS-pinned
+  HTTPS transport; service workers, sockets, images, media and popups are blocked.
+  A dead proxy prevents unhandled direct egress. Browser output is only metadata.
+  Run browser processes with OS sandboxing/resource limits and a restricted
+  network policy; never add `--no-sandbox`. This does not bypass CAPTCHAs,
+  authenticated pages or platform restrictions; explicit media hints still work
+  when the source page is blocked. Provider player streams are not downloaded.
+  Chromium sandboxing is explicitly enabled; run as a non-root user on a host
+  with user namespaces/sandbox support. If unavailable, extraction falls back
+  to static metadata instead of disabling the sandbox.
+  The sandbox's root-only environment cannot validate this hardened browser
+  launch; run `CHROMIUM_PATH=... bun test render.test.ts` as a non-root worker
+  user on the deployment host before enabling approved render hosts.
+- `omni_matrix_items` is an owner-only semantic draft projection; `grid_items`
+  and `ingest_tokens` are compatibility views. Public cards still use published
+  snapshots. UUID webhook tokens are stored only as SHA-256 hashes, not plaintext
+  in user_settings. Existing high-entropy tokens remain accepted until rotation.
+- `/api/ingest/grid` and `/api/ingest/omni` are compatibility routes. Use the
+  `/api/public/ingest/*` URLs for external callers on published Lovable sites.
 - There is no serverless job execution deadline. Source requests have safety
   deadlines and size limits; container resource limits remain necessary.
 - The API waits for authorization and durable insertion, not media work. A

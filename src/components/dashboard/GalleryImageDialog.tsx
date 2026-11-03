@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { galleryImageSrc } from "@/lib/image-proxy-rules";
 import { isSocialGridMediaUrl } from "@/lib/social-grid";
+import { isAllowedProxyUrl } from "@/lib/image-proxy-rules";
 import { ImagePlus, Loader2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 
@@ -10,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { uploadGalleryMedia } from "@/lib/gallery-media.functions";
+import { uploadGridCover } from "@/lib/omni-upload.functions";
 import {
   GALLERY_ALLOWED_TYPES,
   GALLERY_MAX_BYTES,
@@ -39,13 +41,15 @@ export function GalleryImageDialog({
   open,
   onOpenChange,
   onAdd,
+  localOnly = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdd: (item: GalleryItem) => void;
+  localOnly?: boolean;
 }) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState("url");
+  const [tab, setTab] = useState(localOnly ? "upload" : "url");
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [url, setUrl] = useState("");
@@ -62,7 +66,7 @@ export function GalleryImageDialog({
     setAlt("");
     setLinkUrl("");
     setDragging(false);
-    setTab("url");
+    setTab(localOnly ? "upload" : "url");
   }
 
   function commit(imageUrl: string) {
@@ -89,9 +93,23 @@ export function GalleryImageDialog({
     }
     setBusy(true);
     try {
-      const base64 = await readBase64(file);
+      let upload = file;
+      if (localOnly) {
+        if (!file.type.startsWith("image/") || file.type === "image/svg+xml") throw new Error("unsupported_image");
+        const bitmap = await createImageBitmap(file);
+        try {
+          const ratio = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(bitmap.width * ratio)); canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
+          const ctx = canvas.getContext("2d"); if (!ctx) throw new Error("conversion_unavailable");
+          ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+          const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((result) => result ? resolve(result) : reject(new Error("conversion_failed")), "image/webp", .82));
+          upload = new File([blob], "cover.webp", { type: "image/webp" });
+        } finally { bitmap.close(); }
+      }
+      const base64 = await readBase64(upload);
       const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase();
-      const res = await uploadGalleryMedia({
+      const res = localOnly ? await uploadGridCover({ data: { base64 } }) : await uploadGalleryMedia({
         data: { base64, contentType: file.type, ext },
       });
       if (!res.ok || !res.url) {
@@ -119,11 +137,11 @@ export function GalleryImageDialog({
           <DialogTitle className="text-base">{t("studio.grid.media.title")}</DialogTitle>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs value={localOnly ? "upload" : tab} onValueChange={setTab}>
+          {!localOnly && <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="upload">{t("studio.grid.media.upload")}</TabsTrigger>
             <TabsTrigger value="url">{t("studio.grid.media.url")}</TabsTrigger>
-          </TabsList>
+          </TabsList>}
 
           <TabsContent value="upload" className="pt-3">
             <Button variant="ghost"
@@ -159,7 +177,7 @@ export function GalleryImageDialog({
             <input
               ref={fileInput}
               type="file"
-              accept={GALLERY_ALLOWED_TYPES.join(",")}
+              accept={GALLERY_ALLOWED_TYPES.filter((type) => !localOnly || type !== "image/svg+xml").join(",")}
               className="hidden"
               onChange={(e) => void handleFile(e.target.files?.[0])}
             />
@@ -177,12 +195,12 @@ export function GalleryImageDialog({
               }}
               aria-label={t("studio.grid.media.url")}
             />
-            {url.trim() !== "" && !isSocialGridMediaUrl(url) && (
+            {url.trim() !== "" && !(isSocialGridMediaUrl(url) || isAllowedProxyUrl(url)) && (
               <p className="text-[11px] font-medium text-destructive" role="alert">
                 {t("studio.grid.media.invalid")}
               </p>
             )}
-            {isSocialGridMediaUrl(url) && (
+            {(isSocialGridMediaUrl(url) || isAllowedProxyUrl(url)) && (
               <div className="overflow-hidden rounded-xl border border-border bg-muted">
                 <img
                   src={galleryImageSrc(url) ?? undefined}
@@ -201,7 +219,7 @@ export function GalleryImageDialog({
             )}
             <Button variant="ghost"
               type="button"
-              disabled={!isSocialGridMediaUrl(url) || urlOk !== true}
+              disabled={!(isSocialGridMediaUrl(url) || isAllowedProxyUrl(url)) || urlOk !== true}
               onClick={() => commit(url.trim())}
               className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-foreground text-sm font-medium text-background disabled:opacity-50"
             >
