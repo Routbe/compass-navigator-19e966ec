@@ -47,6 +47,7 @@ function Tile({ item }: { item: SocialGridItem }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const src = isSocialGridMediaUrl(item.mediaUrl) ? item.mediaUrl : null;
+  useEffect(() => { setLoaded(false); setFailed(false); }, [src]);
   const showCaption = Boolean(item.caption) && (Boolean(item.contentType) || item.platform === "article" || item.platform === "custom");
   const label = item.caption || t(`studio.grid.platform.${item.platform}`);
   const target = item.targetUrl;

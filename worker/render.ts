@@ -8,7 +8,7 @@ import { safeFetch, publicAddress } from "./fetch";
 export async function renderedMetadata(raw: string, transport = safeFetch): Promise<string> {
   const target = new URL(raw);
   if (target.protocol !== "https:" || target.username || target.password || (target.port && target.port !== "443")) throw new Error("unsafe");
-  const browser = await chromium.launch({ headless: true,
+  const browser = await chromium.launch({ headless: true, chromiumSandbox: true,
     ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
     proxy: { server: "http://127.0.0.1:9", bypass: "<-loopback>" },
     args: ["--disable-background-networking", "--disable-quic", "--force-webrtc-ip-handling-policy=disable_non_proxied_udp"],

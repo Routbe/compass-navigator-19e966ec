@@ -58,6 +58,9 @@ VPS/container host; put `/events` behind HTTPS with proxy buffering disabled.
   network policy; never add `--no-sandbox`. This does not bypass CAPTCHAs,
   authenticated pages or platform restrictions; explicit media hints still work
   when the source page is blocked. Provider player streams are not downloaded.
+  Chromium sandboxing is explicitly enabled; run as a non-root user on a host
+  with user namespaces/sandbox support. If unavailable, extraction falls back
+  to static metadata instead of disabling the sandbox.
 - `omni_matrix_items` is an owner-only semantic draft projection; `grid_items`
   and `ingest_tokens` are compatibility views. Public cards still use published
   snapshots. UUID webhook tokens are stored only as SHA-256 hashes, not plaintext

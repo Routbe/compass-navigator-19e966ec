@@ -29,7 +29,7 @@ export const dismissOmniJob = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { sql } = await import("@/lib/neon");
-    await sql`delete from public.omni_jobs where id=${data.id} and user_id=${context.userId}`;
+    await sql`delete from public.omni_jobs where id=${data.id} and user_id=${context.userId} and status='failed'`;
     return { ok: true };
   });
 
@@ -38,7 +38,7 @@ export const retryOmniJob = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { sql } = await import("@/lib/neon");
-    await sql`update public.omni_jobs set status='queued', attempts=0, error=null, updated_at=now()
+    await sql`update public.omni_jobs set status='queued', attempts=0, error=null, lease_token=null, next_attempt_at=now(), updated_at=now()
       where id=${data.id} and user_id=${context.userId} and status='failed'`;
     return { ok: true };
   });

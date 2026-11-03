@@ -83,7 +83,7 @@ export function OmniIngestPanel({ onAdd, full }: { onAdd: (item: SocialGridItem)
   const revoke = useMutation({ mutationFn: () => revokeIngestToken(), onSuccess: () => { setToken(""); setCopied(false); void tokenStatus.refetch(); }, onError: () => setError("Intrekken lukt momenteel niet.") });
 
   return <div className="space-y-3 border-b border-border pb-3">
-    <form className="flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); enqueue.mutate(); }}>
+    <form className="flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); if (!enqueue.isPending && !full && url.trim()) enqueue.mutate(); }}>
       <Input aria-label="Content-URL" placeholder="https://…" inputMode="url" value={url} onChange={(event) => setUrl(event.target.value)} />
       <Button type="submit" size="icon" variant="outline" title="Link importeren" aria-label="Link importeren" disabled={!url.trim() || enqueue.isPending || full}>
         {enqueue.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
