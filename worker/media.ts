@@ -15,6 +15,7 @@ export function storage() {
   const bucket = process.env.SCALEWAY_CLIENT_BUCKET;
   const region = process.env.SCALEWAY_REGION || "fr-par";
   if (!accessKeyId || !secretAccessKey || !bucket) throw new Error("storage_not_configured");
+  if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket) || bucket.includes("..")) throw new Error("invalid_storage_bucket");
   const endpoint = process.env.SCALEWAY_ENDPOINT || `https://s3.${region}.scw.cloud`;
   const url = new URL(endpoint);
   if (url.protocol !== "https:" || !/^s3\.(fr-par|nl-ams|pl-waw)\.scw\.cloud$/.test(url.hostname)) throw new Error("non_sovereign_storage_endpoint");
@@ -56,7 +57,9 @@ export async function prepare(job: ClaimedJob): Promise<PreparedMedia> {
   const endpoint = discoverOEmbed(html, page.url);
   if (endpoint) {
     try {
-      const data = JSON.parse((await safeFetch(endpoint, 64 * 1024)).bytes.toString("utf8"));
+      const value: unknown = JSON.parse((await safeFetch(endpoint, 64 * 1024)).bytes.toString("utf8"));
+      if (!value || typeof value !== "object") throw new Error("invalid_oembed");
+      const data = value as Record<string, unknown>;
       if (!og.title && typeof data.title === "string") og.title = data.title.slice(0, 150);
       if (!og.image && typeof data.thumbnail_url === "string") og.image = data.thumbnail_url;
     } catch { /* Optional discovery; never embeds remote HTML or executes scripts. */ }

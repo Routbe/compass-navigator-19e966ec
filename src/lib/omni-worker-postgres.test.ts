@@ -73,6 +73,10 @@ it("owners can preview private media; public visitors need the published card", 
     await db.query("select set_config('rout.current_user_id','',true)");
     await db.query("insert into public.profiles values($1,'public',$2)", [owner, [{ kind: "social_grid", value: JSON.stringify({ items: [{ mediaUrl: `/api/public/gallery-media?path=${encodeURIComponent(path)}` }] }) }]]);
     expect((await db.query("select * from public.rout_omni_media($1,null)", [path])).rows).toHaveLength(1);
+    const video = `${owner}/omni-preview.webm`;
+    await db.query("update public.omni_jobs set kinetic_preview_path=$2 where id=$1", [id, video]);
+    await db.query("update public.profiles set blocks=$1", [[{ kind: "social_grid", value: JSON.stringify({ items: [{ mediaUrl: `/api/public/gallery-media?path=${encodeURIComponent(path)}`, kineticPreviewUrl: `/api/public/gallery-media?path=${encodeURIComponent(video)}` }] }) }]]);
+    expect((await db.query("select * from public.rout_omni_media($1,null)", [video])).rows).toEqual([{ object_key: `users/${video}`, content_type: "video/webm" }]);
     await db.query("update public.profiles set username='private'");
     expect((await db.query("select * from public.rout_omni_media($1,null)", [path])).rows).toHaveLength(0);
   } finally { await db.exec("rollback"); }

@@ -20,7 +20,8 @@ VPS/container host; put `/events` behind HTTPS with proxy buffering disabled.
    - `OMNI_APP_ORIGIN`: exact HTTPS origin of the ROUT webapp.
    - `OMNI_EVENTS_URL`: HTTPS daemon URL ending in `/events`.
    - `SCALEWAY_ACCESS_KEY`, `SCALEWAY_SECRET_KEY`, `SCALEWAY_CLIENT_BUCKET`.
-   - Optional `SCALEWAY_REGION` (`fr-par` default), `SCALEWAY_ENDPOINT`, `PORT`.
+   - Optional `SCALEWAY_REGION` (`fr-par` default), `SCALEWAY_ENDPOINT`, `PORT`, `HOST`.
+     The process binds loopback by default; Docker binds `0.0.0.0` behind your proxy.
    Keep the client bucket private; restrict its keys to `users/`. The worker
    requires PUT/DELETE and the webapp requires GET to the same bucket.
 5. Configure the same `OMNI_REALTIME_SECRET`, `OMNI_EVENTS_URL` and Scaleway
@@ -36,6 +37,10 @@ VPS/container host; put `/events` behind HTTPS with proxy buffering disabled.
 - Atomic SKIP LOCKED claims release row locks before downloads/conversion.
 - Heartbeats every 30 seconds; jobs inactive for five minutes are recovered.
 - Three attempts, delayed retries, lease-fenced writes and lease-specific keys.
+- Heartbeats run independently of downloads/conversion. If database connectivity
+  is lost the worker stops publishing results, preserves ambiguous commits, and
+  the lease permits another worker to recover. Configure container restart and
+  private-bucket orphan lifecycle cleanup; SIGKILL cannot execute cleanup.
 - A 30-second recovery sweep also catches delayed retries and missed messages;
   ordinary dispatch and Studio updates are event-driven, not inbox polling.
 - Reconnecting SSE reads the authenticated inbox to catch missed events. The

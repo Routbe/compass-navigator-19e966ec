@@ -2,6 +2,9 @@ import { verifyOmniTicket } from "../src/lib/omni-realtime";
 
 export class EventHub {
   private clients = new Map<string, Set<ReadableStreamDefaultController<Uint8Array>>>();
+  reconcile() {
+    for (const userId of this.clients.keys()) this.publish(userId, "reconnected");
+  }
   publish(userId: string, id: string) {
     const data = new TextEncoder().encode(`event: job\ndata: ${JSON.stringify({ id })}\n\n`);
     for (const client of this.clients.get(userId) ?? []) {
@@ -26,6 +29,7 @@ export class EventHub {
         const heartbeat = setInterval(() => { try { controller.enqueue(new TextEncoder().encode(": heartbeat\n\n")); } catch { close(); } }, 20_000);
         const expiry = setTimeout(close, Math.max(1, ticket.exp * 1000 - Date.now()));
         cleanup = close; request.signal.addEventListener("abort", close, { once: true });
+        if (request.signal.aborted) { close(); return; }
         controller.enqueue(new TextEncoder().encode("event: connected\ndata: {}\n\n"));
       }, cancel: () => cleanup(),
     });
