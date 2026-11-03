@@ -17,6 +17,7 @@ export async function safeFetch(raw: string, max: number, redirects = 0): Promis
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => req.destroy(new Error("source_timeout")), 30_000);
     const req = request(url, {
+      family: pinned.family, autoSelectFamily: false,
       headers: { "user-agent": "ROUT-LinkPreview/1.0 (+https://rout.be)", accept: "*/*" },
       lookup: (_hostname, _options, callback) => callback(null, pinned.address, pinned.family),
     }, (res) => {
