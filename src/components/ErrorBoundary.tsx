@@ -2,6 +2,8 @@ import { Component, useEffect, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, RotateCcw, ChevronDown, Trash2, Send } from "lucide-react";
 import { problemReportHref } from "@/lib/problem-report";
 import { Button } from "@/components/ui/button";
+import { i18n } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   children: ReactNode;
@@ -49,10 +51,11 @@ export function willAutoReload(error: unknown): boolean {
 
 /** Quiet screen shown instead of the crash card while a new version loads. */
 export function StaleChunkReload({ error }: { error: unknown }) {
+  const { t } = useTranslation();
   useEffect(() => { reloadForStaleChunk(error); }, [error]);
   return (
     <div role="status" aria-live="polite" className="flex min-h-[60vh] w-full items-center justify-center px-4 py-10 text-sm text-muted-foreground">
-      <RotateCcw className="mr-2 h-4 w-4 animate-spin" aria-hidden /> Nieuwe versie laden…
+      <RotateCcw className="mr-2 h-4 w-4 animate-spin" aria-hidden /> {t("ui.newVersion")}
     </div>
   );
 }
@@ -68,6 +71,9 @@ if (typeof window !== "undefined") {
 export class ErrorBoundary extends Component<Props, State> {
   override state: State = { error: null, info: null, detailsOpen: false };
   private reloading = false;
+  private languageChanged = () => this.forceUpdate();
+  override componentDidMount() { i18n.on("languageChanged", this.languageChanged); }
+  override componentWillUnmount() { i18n.off("languageChanged", this.languageChanged); }
   static getDerivedStateFromError(error: Error): Partial<State> {
     return { error };
   }
@@ -131,29 +137,28 @@ export class ErrorBoundary extends Component<Props, State> {
           </div>
           <div className="space-y-1">
             <h2 className="text-lg font-medium">
-              {this.props.label ? `${this.props.label} reageert niet meer` : "Er ging iets mis"}
+              {this.props.label ? i18n.t("ui.componentError", { label: this.props.label }) : i18n.t("ui.error")}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Er is een onverwachte fout opgetreden in de applicatie. We hebben het probleem
-              opgevangen voordat de pagina crashte — herlaad om fris te starten.
+              {i18n.t("ui.errorDescription")}
             </p>
           </div>
           <div className="flex flex-wrap justify-center gap-2">
             <Button onClick={this.reload}>
               <RotateCcw className="mr-2 h-4 w-4" aria-hidden />
-              App opnieuw laden
+              {i18n.t("ui.reload")}
             </Button>
             <Button variant="outline" onClick={this.retry}>
-              Opnieuw proberen
+              {i18n.t("ui.retry")}
             </Button>
             <Button variant="outline" onClick={this.resetCache}>
               <Trash2 className="mr-2 h-4 w-4" aria-hidden />
-              Reset app &amp; cache
+              {i18n.t("ui.resetCache")}
             </Button>
             <Button asChild variant="outline">
               <a href={problemReportHref({ name: error.name, message: error.message, stack }, typeof window !== "undefined" ? window.location.pathname : "")}>
                 <Send className="mr-2 h-4 w-4" aria-hidden />
-                Probleem melden
+                {i18n.t("ui.report")}
               </a>
             </Button>
           </div>
@@ -168,7 +173,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 className={`h-3.5 w-3.5 ${detailsOpen ? "rotate-180" : ""}`}
                 aria-hidden
               />
-              Technische details
+              {i18n.t("ui.errorDetails")}
             </button>
             {detailsOpen && (
               <pre className="mt-2 max-h-64 overflow-auto rounded-xl border border-border bg-muted/60 p-3 text-left font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words text-muted-foreground">
