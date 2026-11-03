@@ -8,6 +8,7 @@ import { ChevronDown, ChevronUp, Clapperboard, GripVertical, ImagePlus, Pin, Tra
 
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GalleryImageDialog } from "@/components/dashboard/GalleryImageDialog";
 import type { GalleryItem } from "@/lib/gallery";
 import { galleryImageSrc } from "@/lib/image-proxy-rules";
@@ -182,10 +183,10 @@ export function SocialGridBlockSettings({
                     </label>
                     <div className="space-y-1">
                       <label className="block space-y-1 text-[10px] text-muted-foreground">Contenttype
-                        <select aria-label="Contenttype" className="h-9 w-full rounded-md border border-input bg-background px-2 text-foreground" value={item.contentType ?? "social"}
-                          onChange={(event) => { const contentType = OMNI_CONTENT_TYPES.find((type) => type === event.target.value); if (contentType) patchItem(item.id, { contentType }); }}>
-                          {OMNI_CONTENT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-                        </select>
+                        <Select value={item.contentType ?? "social"} onValueChange={(value) => { const contentType = OMNI_CONTENT_TYPES.find((type) => type === value); if (contentType) patchItem(item.id, { contentType }); }}>
+                          <SelectTrigger aria-label="Contenttype"><SelectValue /></SelectTrigger>
+                          <SelectContent>{OMNI_CONTENT_TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+                        </Select>
                       </label>
                       <Input aria-label="Media-context" placeholder="5 min · 45:00 · Seizoen 1" maxLength={40} value={item.metaTag ?? ""} onChange={(event) => patchItem(item.id, { metaTag: event.target.value || undefined })} />
                       <label className="flex items-center justify-between gap-2 py-2">

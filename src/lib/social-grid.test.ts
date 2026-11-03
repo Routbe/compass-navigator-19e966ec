@@ -11,7 +11,7 @@ import {
   serializeSocialGridConfig,
 } from "./social-grid";
 
-const upload = "/api/public/gallery-media?path=u%2Fa.webp";
+const upload = "/api/public/gallery-media?path=11111111-1111-4111-8111-111111111111%2Fa.webp";
 const card = (over: Record<string, unknown> = {}) => ({ id: "a", mediaUrl: upload, platform: "instagram", ...over });
 
 describe("social grid destination links", () => {
@@ -30,11 +30,14 @@ describe("social grid destination links", () => {
 });
 
 describe("social grid images", () => {
-  it("allows own uploads and proxy-allowed hosts only", () => {
+  it("allows only persisted first-party media, never a remote image proxy", () => {
     expect(isSocialGridMediaUrl(upload)).toBe(true);
-    expect(isSocialGridMediaUrl("https://images.unsplash.com/photo-1")).toBe(true);
+    expect(isSocialGridMediaUrl("https://images.unsplash.com/photo-1")).toBe(false);
     expect(isSocialGridMediaUrl("https://tracker.example.com/pixel.png")).toBe(false);
     expect(isSocialGridMediaUrl("http://images.unsplash.com/photo-1")).toBe(false);
+  });
+  it("rejects malformed, duplicate and traversal-style media queries", () => {
+    for (const invalid of ["/api/public/gallery-media?path=https://cdn.example.com/x.jpg", `${upload}&path=another`, `${upload}&url=https://cdn.example.com`, `${upload}#fragment`, "/api/public/gallery-media?path=../secret"]) expect(isSocialGridMediaUrl(invalid)).toBe(false);
   });
 });
 
@@ -45,7 +48,7 @@ describe("social grid parsing", () => {
       items: [card({ targetUrl: "javascript:alert(1)" }), card({ id: "b", mediaUrl: "https://evil.example/x.png" })],
     }));
     expect(config.items).toHaveLength(1);
-    expect(config.items[0]!.targetUrl).toBeUndefined();
+    expect(config.items[0]?.targetUrl).toBeUndefined();
   });
   it("caps the grid at 30 cards", () => {
     const items = Array.from({ length: 40 }, (_, i) => card({ id: `c${i}` }));
@@ -54,11 +57,17 @@ describe("social grid parsing", () => {
   });
   it("falls back to 'custom' for an unknown platform and false for flags", () => {
     const [item] = parseSocialGridConfig(JSON.stringify({ items: [card({ platform: "myspace", isVideo: "yes" })] })).items;
-    expect(item!.platform).toBe("custom");
-    expect(item!.isVideo).toBe(false);
+    expect(item?.platform).toBe("custom");
+    expect(item?.isVideo).toBe(false);
   });
   it("returns an empty grid for broken JSON", () => {
     expect(parseSocialGridConfig("{oops").items).toEqual([]);
+  });
+  it("uses semantic types for manual links and rejects remote kinetic previews", () => {
+    const items = parseSocialGridConfig(JSON.stringify({ items: [card({ targetUrl: "https://open.spotify.com/show/1", kineticPreviewUrl: "https://cdn.example.com/a.webm" }), card({ id: "b", contentType: "event", isHero: true })] })).items;
+    expect(items[0]?.contentType).toBe("podcast");
+    expect(items[0]?.kineticPreviewUrl).toBeUndefined();
+    expect(items[1]).toMatchObject({ contentType: "event", isHero: true });
   });
 });
 
@@ -89,8 +98,8 @@ describe("server normalization", () => {
       { id: "1", kind: "social_grid", value: dirty },
       { id: "2", kind: "link", value: "javascript:x" },
     ]);
-    expect(parseSocialGridConfig(grid!.value).items[0]!.targetUrl).toBeUndefined();
-    expect(grid!.value).toBe(serializeSocialGridConfig(parseSocialGridConfig(dirty)));
-    expect(other!.value).toBe("javascript:x");
+    expect(parseSocialGridConfig(grid?.value).items[0]?.targetUrl).toBeUndefined();
+    expect(grid?.value).toBe(serializeSocialGridConfig(parseSocialGridConfig(dirty)));
+    expect(other?.value).toBe("javascript:x");
   });
 });
