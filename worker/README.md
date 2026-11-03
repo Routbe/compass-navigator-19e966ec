@@ -53,6 +53,8 @@ VPS/container host; put `/events` behind HTTPS with proxy buffering disabled.
   approved hostnames and install Chromium (`CHROMIUM_PATH` optional). Docker
   includes Chromium. All network resources are fulfilled through DNS-pinned
   HTTPS transport; service workers, sockets, images, media and popups are blocked.
+  The exact host allowlist applies to every resource and redirect before DNS
+  resolution; enumerate required script/API hosts explicitly, never wildcards.
   A dead proxy prevents unhandled direct egress. Browser output is only metadata.
   Run browser processes with OS sandboxing/resource limits and a restricted
   network policy; never add `--no-sandbox`. This does not bypass CAPTCHAs,

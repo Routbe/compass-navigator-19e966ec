@@ -69,3 +69,24 @@ it("exposes manual readback when an established stream closes normally", async (
     expect(await screen.findByRole("button", { name: "Inbox vernieuwen" })).toBeTruthy();
   } finally { view.unmount(); fetch.mockRestore(); }
 });
+it("reconciles completion arriving during an in-flight read without cancelling that read", async () => {
+  const encoder = new TextEncoder(); let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
+  const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(new ReadableStream<Uint8Array>({ start(value) { controller = value; } })));
+  mocks.ticket.mockResolvedValue({ configured: true, url: "https://events.example.com/events", token: "test-ticket" });
+  const view = mount();
+  try {
+    await waitFor(() => expect(mocks.list).toHaveBeenCalledTimes(1));
+    let finishRead: (value: unknown) => void = () => {};
+    mocks.list.mockImplementationOnce(() => new Promise((resolve) => { finishRead = resolve; }));
+    await act(async () => { controller?.enqueue(encoder.encode("event: reconnected\ndata: {}\n\n")); });
+    await waitFor(() => expect(mocks.list).toHaveBeenCalledTimes(2));
+    mocks.list.mockResolvedValue([job]);
+    await act(async () => {
+      controller?.enqueue(encoder.encode("event: job\ndata: {}\n\n"));
+      await Promise.resolve(); finishRead([]);
+    });
+    expect(await screen.findByRole("button", { name: "Kaart toevoegen" })).toBeTruthy();
+    expect(mocks.list).toHaveBeenCalledTimes(3);
+    expect(view.onAdd).not.toHaveBeenCalled();
+  } finally { view.unmount(); controller?.close(); fetch.mockRestore(); }
+});

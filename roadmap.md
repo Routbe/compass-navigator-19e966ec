@@ -5,7 +5,7 @@
 - [ ] Complete account, email, payment, and other external-service setup (requires provider settings; authenticated flows remain unverified).
 
 ## Omni-Matrix
-- [ ] Harden asynchronous acceptance, realtime reconciliation and kinetic lifecycle against concrete audit findings; run focused regressions.
+- [x] Harden accepted-card reconciliation, coalesced SSE readback, kinetic playback lifecycle and exact renderer egress allowlists; focused regressions pass.
 - [x] Finish sovereign-only manual grid media, semantic draft catalog and compatibility endpoint paths; UUID webhook tokens stay hashed.
 - [x] Implement sandbox-required optional SPA metadata rendering in the standalone daemon and optimistic Studio grid transitions.
 - [x] Extend regression coverage: local paths, catalog owner isolation, UUID webhook enqueue, uploads and SSE readback; live webhook paths reject unauthenticated callers.
