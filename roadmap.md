@@ -10,7 +10,10 @@
 - [x] Add bounded webhook bodies, guarded oEmbed discovery, local-media mapping and reduced-motion kinetic controls.
 - [x] Run 25 targeted tests and bunx tsgo --noEmit (exit 0); preview build succeeds.
 - [ ] Activate ingestion schema in Neon: existing migration 0188 is not applied; requires reviewed database migration execution.
-- [ ] Durable event worker: Inngest connection was declined; request-lifetime tasks are not a durable queue.
-- [ ] Sovereign object storage and WebP/WebM conversion: storage credentials and a Worker-compatible conversion service are missing; current media remains in existing Neon gallery storage.
-- [ ] WebSocket job synchronization: Neon has no configured realtime service; current Studio inbox uses bounded polling while jobs are pending.
+- [ ] Replace request-lifetime processing with enqueue-only web handlers and public.omni_jobs.
+- [ ] Add standalone PostgreSQL LISTEN/NOTIFY daemon with SKIP LOCKED claims, leases, retries and five-minute zombie recovery.
+- [ ] Move extraction and Sharp/FFmpeg conversion into the daemon; use private Scaleway S3 and metadata-only job paths.
+- [ ] Replace Studio polling with authenticated SSE from the persistent daemon.
+- [ ] Test queue, recovery, ticket authorization and separation of web/worker concerns.
+- [ ] Deploy daemon and activate migration: requires persistent PostgreSQL access (the Neon HTTP connector cannot LISTEN), worker hosting, storage credentials and shared realtime secret.
 - [ ] Authenticated end-to-end ingestion and published media verification: blocked by missing ingestion schema and account setup.
