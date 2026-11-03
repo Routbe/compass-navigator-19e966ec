@@ -12,3 +12,4 @@
 ## Source import
 - Preserve the imported ROUT TanStack Start structure and MDX catalog plugin; the full repository is retained for subsequent service setup.
 - Never import source environment files, generated route trees, or repository metadata; credentials and connected-service data are not transferred with source code.
+- Omni ingestion results enter the existing private Studio draft before publication; use the shared ready-job mapper to reject remote media and keep a single published profile source of truth.

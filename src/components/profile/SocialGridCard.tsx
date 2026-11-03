@@ -1,8 +1,9 @@
-import { useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, Clapperboard, Headphones, Newspaper, Pin, Play, Smartphone, AtSign } from "lucide-react";
 import type { OmniContentType } from "@/lib/omni-ingest";
+import { isLocalOmniMediaUrl } from "@/lib/omni-ingest";
 
 import { galleryImageSrc } from "@/lib/image-proxy-rules";
 import {
@@ -28,8 +29,9 @@ function Tile({ item }: { item: SocialGridItem }) {
   const { t } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
   const [kinetic, setKinetic] = useState(false);
+  const kineticUrl = item.kineticPreviewUrl && isLocalOmniMediaUrl(item.kineticPreviewUrl) ? item.kineticPreviewUrl : null;
   const startKinetic = () => {
-    if (!item.kineticPreviewUrl) return;
+    if (!kineticUrl || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     setKinetic(true);
     void video.current?.play().catch(() => setKinetic(false));
   };
@@ -38,9 +40,11 @@ function Tile({ item }: { item: SocialGridItem }) {
     video.current?.pause();
   };
   const pressTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => { window.clearTimeout(pressTimer.current); }, []);
   const BadgeIcon = item.contentType ? BADGE_ICON[item.contentType] : null;
   const router = useRouter();
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
   const src = galleryImageSrc(item.mediaUrl);
   const showCaption = Boolean(item.caption) && (Boolean(item.contentType) || item.platform === "article" || item.platform === "custom");
   const label = item.caption || t(`studio.grid.platform.${item.platform}`);
@@ -55,7 +59,9 @@ function Tile({ item }: { item: SocialGridItem }) {
 
   const body = (
     <>
-      {src && (
+      {!loaded && <div aria-hidden className={cn("absolute inset-0 bg-muted", !failed && "animate-pulse motion-reduce:animate-none")} />}
+      {failed && <span className="absolute inset-0 flex items-center justify-center text-muted-foreground"><Newspaper className="h-6 w-6" aria-hidden /></span>}
+      {src && !failed && (
         <img
           src={src}
           alt={item.caption ?? ""}
@@ -63,16 +69,17 @@ function Tile({ item }: { item: SocialGridItem }) {
           decoding="async"
           draggable={false}
           onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
           className={cn(
             "h-full w-full object-cover transition-[opacity,transform,filter] duration-500 group-hover:scale-[1.04]",
             loaded ? "scale-100 opacity-100 blur-0" : "scale-105 opacity-0 blur-md",
           )}
         />
       )}
-      {item.kineticPreviewUrl && (
+      {kineticUrl && (
         <video
           ref={video}
-          src={item.kineticPreviewUrl}
+          src={kineticUrl}
           muted
           loop
           playsInline
@@ -104,10 +111,10 @@ function Tile({ item }: { item: SocialGridItem }) {
       "group relative block w-full overflow-hidden rounded-xl bg-current/5 outline-none transition-transform duration-200 ease-out active:scale-95 focus-visible:ring-2 focus-visible:ring-current [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent] motion-reduce:transition-none",
       item.isHero ? "aspect-[2/1] sm:aspect-[2/1]" : "aspect-square",
     );
-  const hover = item.kineticPreviewUrl
-    ? { onPointerEnter: startKinetic, onPointerLeave: stopKinetic, onPointerCancel: stopKinetic, onContextMenu: (e: MouseEvent) => e.preventDefault(),
+  const hover = kineticUrl
+    ? { onPointerEnter: (event: React.PointerEvent) => { if (event.pointerType === "mouse") startKinetic(); }, onPointerLeave: stopKinetic, onPointerCancel: () => { window.clearTimeout(pressTimer.current); stopKinetic(); }, onContextMenu: (e: MouseEvent) => e.preventDefault(),
         onTouchStart: () => { pressTimer.current = window.setTimeout(startKinetic, 350); },
-        onTouchEnd: () => { window.clearTimeout(pressTimer.current); stopKinetic(); } }
+        onTouchEnd: () => { window.clearTimeout(pressTimer.current); stopKinetic(); }, onTouchCancel: () => { window.clearTimeout(pressTimer.current); stopKinetic(); } }
     : {};
 
   if (!target) return <div className={tileClass} {...hover}>{body}</div>;

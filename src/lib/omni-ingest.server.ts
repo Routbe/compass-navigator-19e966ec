@@ -12,6 +12,7 @@ import {
   OMNI_MAX_VIDEO_BYTES,
   OMNI_VIDEO_TYPES,
   classifyOmniUrl,
+  discoverOEmbed,
   galleryMediaUrl,
   omniMetaTag,
   parseOpenGraph,
@@ -39,6 +40,7 @@ async function guardedFetch(raw: string, accept: string): Promise<{ res: Respons
     });
     if (res.status >= 300 && res.status < 400) {
       const loc = res.headers.get("location");
+      await res.body?.cancel();
       if (!loc) throw new Error("bad_redirect");
       current = new URL(loc, url).toString();
       continue;
@@ -114,7 +116,7 @@ const errorCode = (e: unknown) => {
 
 export async function processOmniJob(jobId: string, userId: string): Promise<void> {
   const claimed = (await sql`update public.omni_ingest_jobs set status='processing', attempts=attempts+1, updated_at=now()
-    where id=${jobId} and user_id=${userId} and status in ('queued','failed') and attempts < 3
+    where id=${jobId} and user_id=${userId} and status='queued' and attempts < 3
     returning source_url, title_override, media_hint`) as { source_url: string; title_override: string | null; media_hint?: string | null }[];
   const job = claimed[0];
   if (!job) return;
@@ -132,6 +134,21 @@ export async function processOmniJob(jobId: string, userId: string): Promise<voi
       if (res.ok && /html|xml/i.test(res.headers.get("content-type") ?? "")) {
         const html = new TextDecoder().decode(await readCapped(res, MAX_HTML_BYTES).catch(() => new Uint8Array()));
         og = parseOpenGraph(html, url);
+        const endpoint = discoverOEmbed(html, url);
+        if (endpoint) {
+          try {
+            const response = await guardedFetch(endpoint, "application/json");
+            if (response.res.ok) {
+              const value: unknown = JSON.parse(new TextDecoder().decode(await readCapped(response.res, 64 * 1024)));
+              if (value && typeof value === "object") {
+                const data = value as Record<string, unknown>;
+                if (!og.title && typeof data["title"] === "string") og.title = data["title"].slice(0, 150);
+                if (!og.image && typeof data["thumbnail_url"] === "string") og.image = data["thumbnail_url"];
+                if (!og.type && data["type"] === "video") og.type = "video.other";
+              }
+            }
+          } catch { /* Provider discovery is optional; guarded OpenGraph remains usable. */ }
+        }
         words = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
       }
     } catch (e) {
@@ -186,7 +203,8 @@ export async function enqueueOmniJob(input: {
   if (Number(recent[0]?.n ?? 0) >= 60) throw Object.assign(new Error("rate_limited"), { status: 429 });
   const rows = (await sql`insert into public.omni_ingest_jobs (user_id, source, source_url, title_override, media_hint)
     values (${input.userId}, ${input.source}, ${input.url}, ${input.title || null}, ${input.mediaUrl || null}) returning id`) as { id: string }[];
-  const id = rows[0]!.id;
+  const id = rows[0]?.id;
+  if (!id) throw new Error("job_not_created");
   const { registerBackgroundTask } = await import("@/lib/background-task.server");
   const task = processOmniJob(id, input.userId).catch(() => undefined);
   if (!registerBackgroundTask(task)) void task;
