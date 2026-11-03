@@ -5,6 +5,9 @@
 - [ ] Complete account, email, payment, and other external-service setup (requires provider settings; authenticated flows remain unverified).
 
 ## Omni-Matrix
+- [ ] Finish sovereign-only manual grid media, semantic draft catalog and compatibility endpoint paths.
+- [ ] Add safe standalone browser rendering for SPA metadata and optimistic Studio grid transitions.
+- [ ] Extend regression coverage and verify the available end-to-end flow without claiming undeployed services work.
 - [x] Audit existing ingestion, Studio controls, profile grid, storage and queue.
 - [x] Add Studio URL imports, job inbox, webhook-token controls, content-type/meta editing and Hero switch.
 - [x] Add bounded webhook bodies, guarded oEmbed discovery, local-media mapping and reduced-motion kinetic controls.
