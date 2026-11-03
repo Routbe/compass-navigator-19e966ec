@@ -5,7 +5,8 @@
 - [ ] Complete account, email, payment, and other external-service setup (requires provider settings; authenticated flows remain unverified).
 
 ## Omni-Matrix
-- [ ] Remove temporary /dev/visit-fx route and associated mocks if present; verify the actual public-profile effect integration without deleting useful regression tests.
+- [x] Confirm /dev/visit-fx route, mocks and CSS remnants are absent; retain real physics engine and regression tests; restrict Studio test-event listener to explicit preview instances.
+- [ ] Certify visit-effect launch readiness: needs real configured public-profile browser verification and final TypeScript result; manual typechecks are disallowed here. Existing root/custom-domain profile effects remain intact.
 - [x] Harden accepted-card reconciliation, coalesced SSE readback, kinetic playback lifecycle and exact renderer egress allowlists; focused regressions pass.
 - [x] Finish sovereign-only manual grid media, semantic draft catalog and compatibility endpoint paths; UUID webhook tokens stay hashed.
 - [x] Implement sandbox-required optional SPA metadata rendering in the standalone daemon and optimistic Studio grid transitions.
@@ -23,6 +24,7 @@
 - [x] Test queue, recovery, ticket authorization and separation of web/worker concerns; native disposable PostgreSQL confirms commit-only notifications and SKIP LOCKED concurrency.
 - [x] Final targeted checks: 23 application tests and 5 daemon tests pass, including real Sharp/FFmpeg conversion; preview build OK.
 - [x] Current verification: 51 application tests and 4 daemon tests pass; native PostgreSQL test previously passed, hardened browser deployment check remains blocked; preview build OK.
+- [x] Further hardening: 36 focused application tests, 6 daemon tests and 9 visit-effect regressions pass; hardened browser test skipped under root. Homepage loads without page errors; unauthenticated ingest rejects requests.
 - [ ] Standalone daemon TypeScript check: separate worker/tsconfig.json supplied; manual typecheck execution is disallowed in this environment, so a tsgo exit-0 guarantee is not provided.
 - [ ] Deploy daemon and activate migration: requires persistent PostgreSQL access (the Neon HTTP connector cannot LISTEN), worker hosting, storage credentials and shared realtime secret.
 - [ ] Authenticated end-to-end ingestion and published media verification: blocked by missing ingestion schema and account setup.
