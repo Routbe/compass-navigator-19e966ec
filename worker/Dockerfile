@@ -4,7 +4,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certi
 WORKDIR /app
 COPY worker/package.json worker/bun.lock ./worker/
 RUN bun install --cwd worker --frozen-lockfile
-COPY worker/ ./worker/
+COPY worker/main.ts worker/queue.ts worker/media.ts worker/fetch.ts worker/events.ts ./worker/
 COPY src/lib/omni-ingest.ts src/lib/omni-realtime.ts ./src/lib/
 USER bun
 EXPOSE 8090
