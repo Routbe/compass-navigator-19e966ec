@@ -24,6 +24,8 @@ import {
   type SocialGridItem,
 } from "@/lib/social-grid";
 import { cn } from "@/lib/utils";
+import { OmniIngestPanel } from "@/components/dashboard/OmniIngestPanel";
+import { OMNI_CONTENT_TYPES } from "@/lib/omni-ingest";
 
 /**
  * Studio panel for the native Social Grid. Every change goes through the
@@ -93,6 +95,12 @@ export function SocialGridBlockSettings({
   return (
     <div className="space-y-2.5 border-t border-border/60 pt-3">
       <p className="text-[11px] font-medium text-foreground">{t("studio.grid.heading")}</p>
+
+      <OmniIngestPanel full={full} onAdd={(item) => {
+        if (config.items.some((existing) => existing.id === item.id)) return;
+        update({ items: [...config.items, item].slice(0, SOCIAL_GRID_MAX_ITEMS) });
+        setOpen(item.id);
+      }} />
 
       <Input
         className="input-field h-9 rounded-xl"
@@ -172,6 +180,17 @@ export function SocialGridBlockSettings({
                       />
                     </label>
                     <div className="space-y-1">
+                      <label className="block space-y-1 text-[10px] text-muted-foreground">Contenttype
+                        <select aria-label="Contenttype" className="h-9 w-full rounded-md border border-input bg-background px-2 text-foreground" value={item.contentType ?? "social"}
+                          onChange={(event) => { const contentType = OMNI_CONTENT_TYPES.find((type) => type === event.target.value); if (contentType) patchItem(item.id, { contentType }); }}>
+                          {OMNI_CONTENT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                        </select>
+                      </label>
+                      <Input aria-label="Media-context" placeholder="5 min · 45:00 · Seizoen 1" maxLength={40} value={item.metaTag ?? ""} onChange={(event) => patchItem(item.id, { metaTag: event.target.value || undefined })} />
+                      <label className="flex items-center justify-between gap-2 py-2">
+                        <span className="text-[11px] font-medium text-foreground">Markeer als Hero (Uitgelicht)</span>
+                        <Switch aria-label="Markeer als Hero" checked={item.isHero === true} onCheckedChange={(isHero) => patchItem(item.id, { isHero })} />
+                      </label>
                       <span className="text-[10px] font-medium text-muted-foreground">{t("studio.grid.platformLabel")}</span>
                       <div className="grid grid-cols-4 gap-1">
                         {SOCIAL_GRID_PLATFORMS.map((p) => (

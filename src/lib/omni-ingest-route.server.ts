@@ -19,13 +19,29 @@ export async function handleIngestWebhook(request: Request): Promise<Response> {
   const limited = guardRequest(request, "omni-ingest", 60, 60_000);
   if (limited) return limited;
 
-  const type = (request.headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase();
+  const type = (request.headers.get("content-type") ?? "").split(";")[0]?.trim().toLowerCase();
   if (type !== "application/json") return json({ error: "json_only" }, 415);
   const token = readIngestToken(request);
   if (!token) return json({ error: "unauthorized" }, 401);
 
-  const raw = await request.text();
-  if (raw.length > 4096) return json({ error: "payload_too_large" }, 413);
+  if (Number(request.headers.get("content-length") ?? 0) > 4096) return json({ error: "payload_too_large" }, 413);
+  const reader = request.body?.getReader();
+  if (!reader) return json({ error: "invalid_json" }, 400);
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > 4096) { await reader.cancel(); return json({ error: "payload_too_large" }, 413); }
+      chunks.push(value);
+    }
+  } finally { reader.releaseLock(); }
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+  const raw = new TextDecoder().decode(bytes);
   let body: unknown;
   try {
     body = JSON.parse(raw);
