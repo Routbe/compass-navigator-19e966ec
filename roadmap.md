@@ -5,6 +5,7 @@
 - [ ] Complete account, email, payment, and other external-service setup (requires provider settings; authenticated flows remain unverified).
 
 ## Omni-Matrix
+- [ ] Remove temporary /dev/visit-fx route and associated mocks if present; verify the actual public-profile effect integration without deleting useful regression tests.
 - [x] Harden accepted-card reconciliation, coalesced SSE readback, kinetic playback lifecycle and exact renderer egress allowlists; focused regressions pass.
 - [x] Finish sovereign-only manual grid media, semantic draft catalog and compatibility endpoint paths; UUID webhook tokens stay hashed.
 - [x] Implement sandbox-required optional SPA metadata rendering in the standalone daemon and optimistic Studio grid transitions.
