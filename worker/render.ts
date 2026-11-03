@@ -7,7 +7,8 @@ import { safeFetch, publicAddress } from "./fetch";
  */
 export async function renderedMetadata(raw: string, transport = safeFetch): Promise<string> {
   const target = new URL(raw);
-  if (target.protocol !== "https:" || target.username || target.password || (target.port && target.port !== "443")) throw new Error("unsafe");
+  const allowedHosts = new Set((process.env.OMNI_RENDER_HOSTS ?? "").split(",").map((host) => host.trim().toLowerCase()).filter(Boolean));
+  if (!allowedHosts.has(target.hostname.toLowerCase()) || target.protocol !== "https:" || target.username || target.password || (target.port && target.port !== "443")) throw new Error("unsafe");
   const browser = await chromium.launch({ headless: true, chromiumSandbox: true,
     ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
     proxy: { server: "http://127.0.0.1:9", bypass: "<-loopback>" },
@@ -24,9 +25,10 @@ export async function renderedMetadata(raw: string, transport = safeFetch): Prom
         const host = url.hostname.replace(/^\[|\]$/g, "");
         if (request.method() !== "GET" || !["document", "script", "xhr", "fetch"].includes(request.resourceType()) ||
           url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443") ||
-          host === "localhost" || ((/^[\d.]+$/.test(host) || host.includes(":")) && !publicAddress(host)) ||
+          !allowedHosts.has(host.toLowerCase()) || host === "localhost" || ((/^[\d.]+$/.test(host) || host.includes(":")) && !publicAddress(host)) ||
           ++requests > 40 || total >= 5 * 1024 * 1024) { await route.abort(); return; }
-        const result = await transport(url.toString(), Math.min(1024 * 1024, 5 * 1024 * 1024 - total));
+        const result = await transport(url.toString(), Math.min(1024 * 1024, 5 * 1024 * 1024 - total), 0, allowedHosts);
+        if (!allowedHosts.has(new URL(result.url).hostname.toLowerCase())) throw new Error("unsafe");
         total += result.bytes.length;
         await route.fulfill({ status: 200, contentType: result.type, body: result.bytes });
       } catch { await route.abort().catch(() => {}); }

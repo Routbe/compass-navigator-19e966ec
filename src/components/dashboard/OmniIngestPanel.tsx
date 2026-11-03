@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, Copy, Link2, LoaderCircle, Plus, RefreshCw, KeyRound, Trash2, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ export function OmniIngestPanel({ onAdd, full }: { onAdd: (item: SocialGridItem)
   const [mediaUrl, setMediaUrl] = useState("");
   const [title, setTitle] = useState("");
   const [override, setOverride] = useState(false);
-  const queryClient = useQueryClient();
+  const [accepted, setAccepted] = useState<OmniJob[]>([]);
   const [token, setToken] = useState("");
   const [copied, setCopied] = useState(false);
   const [added, setAdded] = useState<Set<string>>(new Set());
@@ -22,9 +22,25 @@ export function OmniIngestPanel({ onAdd, full }: { onAdd: (item: SocialGridItem)
   const jobs = useQuery({ queryKey: ["omni-ingest-jobs"], queryFn: () => listOmniIngestJobs(), retry: false });
   const refetchJobs = jobs.refetch;
   useEffect(() => {
+    if (!jobs.data) return;
+    const ids = new Set(jobs.data.map((job) => job.id));
+    setAccepted((previous) => previous.filter((job) => !ids.has(job.id)));
+  }, [jobs.data]);
+  const displayedJobs = [...accepted.filter((job) => !jobs.data?.some((row) => row.id === job.id)), ...(jobs.data ?? [])];
+  useEffect(() => {
     const abort = new AbortController();
     let reconnect: ReturnType<typeof setTimeout> | undefined;
     let failures = 0;
+    let reading = false; let dirty = false;
+    async function reconcile() {
+      dirty = true;
+      if (reading) return;
+      reading = true;
+      try {
+        do { dirty = false; await refetchJobs({ cancelRefetch: false }); }
+        while (dirty && !abort.signal.aborted);
+      } finally { reading = false; }
+    }
     async function connect() {
       try {
         const ticket = await getOmniRealtimeTicket();
@@ -44,11 +60,13 @@ export function OmniIngestPanel({ onAdd, full }: { onAdd: (item: SocialGridItem)
             while (boundary >= 0) {
               const frame = buffer.slice(0, boundary); buffer = buffer.slice(boundary + 2);
               // Read back through existing authenticated functions, never trust event data.
-              if (/^event: (job|connected)$/m.test(frame)) void refetchJobs();
+              if (/^event: (job|connected|reconnected)$/m.test(frame)) void reconcile();
               boundary = buffer.indexOf("\n\n");
             }
+            if (buffer.length > 65536) throw new Error("invalid_event_stream");
           }
-        } finally { reader.releaseLock(); }
+        } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
+        if (!abort.signal.aborted) { setRealtimeUnavailable(true); failures++; }
       } catch {
         if (!abort.signal.aborted) { setRealtimeUnavailable(true); failures++; }
       }
@@ -59,20 +77,20 @@ export function OmniIngestPanel({ onAdd, full }: { onAdd: (item: SocialGridItem)
   }, [refetchJobs]);
   const enqueue = useMutation({ mutationFn: () => enqueueOmniUrl({ data: { target_url: url, ...(mediaUrl.trim() ? { media_url: mediaUrl.trim() } : {}), ...(title.trim() ? { title: title.trim() } : {}) } }),
     onMutate: async () => {
-      setError(""); await queryClient.cancelQueries({ queryKey: ["omni-ingest-jobs"] });
+      setError("");
       const id = `pending_${crypto.randomUUID()}`;
       const optimistic: OmniJob = { id, source: "studio", sourceUrl: url, status: "queued", title: title || null, contentType: null, metaTag: null, targetUrl: url, mediaUrl: null, kineticPreviewUrl: null, error: null, createdAt: new Date().toISOString() };
-      queryClient.setQueryData<OmniJob[]>(["omni-ingest-jobs"], (previous) => [optimistic, ...(previous ?? [])]);
+      setAccepted((previous) => [optimistic, ...previous]);
       return { id };
     }, onSuccess: async (result, _variables, optimistic) => {
       if (!result.ok || !result.jobId) {
-        queryClient.setQueryData<OmniJob[]>(["omni-ingest-jobs"], (previous) => previous?.filter((job) => job.id !== optimistic?.id));
+        setAccepted((previous) => previous.filter((job) => job.id !== optimistic?.id));
         setError("Importeren lukt momenteel niet."); return;
       }
-      queryClient.setQueryData<OmniJob[]>(["omni-ingest-jobs"], (previous) => previous?.map((job) => job.id === optimistic?.id ? { ...job, id: result.jobId ?? job.id } : job));
+      setAccepted((previous) => previous.map((job) => job.id === optimistic?.id ? { ...job, id: result.jobId ?? job.id } : job));
       setUrl(""); setMediaUrl(""); setTitle(""); await jobs.refetch();
     }, onError: (_error, _variables, optimistic) => {
-      queryClient.setQueryData<OmniJob[]>(["omni-ingest-jobs"], (previous) => previous?.filter((job) => job.id !== optimistic?.id));
+      setAccepted((previous) => previous.filter((job) => job.id !== optimistic?.id));
       setError("Controleer de link en probeer opnieuw.");
     } });
   const rotate = useMutation({ mutationFn: () => rotateIngestToken(), onSuccess: (result) => { setToken(result.token); setCopied(false); void tokenStatus.refetch(); },
@@ -95,7 +113,7 @@ export function OmniIngestPanel({ onAdd, full }: { onAdd: (item: SocialGridItem)
     {jobs.isError && <p role="status" className="text-xs text-muted-foreground">Content-inbox is nog niet beschikbaar.</p>}
     {realtimeUnavailable && <div className="flex items-center gap-2"><p role="status" className="text-xs text-muted-foreground">Live-updates zijn niet beschikbaar.</p><Button size="icon" variant="ghost" title="Inbox vernieuwen" aria-label="Inbox vernieuwen" onClick={() => void jobs.refetch()}><RefreshCw className="h-4 w-4" /></Button></div>}
     <ul className="grid grid-cols-2 gap-2" aria-label="Content-inbox">
-      {jobs.data?.filter((job) => !added.has(job.id)).map((job) => {
+      {displayedJobs.filter((job) => !added.has(job.id)).map((job) => {
         const item = readyOmniItem(job);
         const pending = job.status === "queued" || job.status === "processing";
         return <li key={job.id} className="min-w-0 overflow-hidden rounded-md border border-border">

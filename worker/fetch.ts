@@ -6,10 +6,11 @@ export function publicAddress(address: string): boolean {
   try { return ipaddr.process(address).range() === "unicast"; } catch { return false; }
 }
 /** DNS-pinned HTTPS transport: never re-resolve between validation and connect. */
-export async function safeFetch(raw: string, max: number, redirects = 0): Promise<{ bytes: Buffer; type: string; url: string }> {
+export async function safeFetch(raw: string, max: number, redirects = 0, allowedHosts?: ReadonlySet<string>): Promise<{ bytes: Buffer; type: string; url: string }> {
   const url = new URL(raw);
   if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443") || redirects > 4) throw new Error("unsafe");
   const host = url.hostname.replace(/^\[|\]$/g, "");
+  if (allowedHosts && !allowedHosts.has(host.toLowerCase())) throw new Error("unsafe");
   const addresses = await lookup(host, { all: true });
   if (!addresses.length || addresses.some((a) => !publicAddress(a.address))) throw new Error("unsafe");
   const pinned = addresses[0];
@@ -26,7 +27,7 @@ export async function safeFetch(raw: string, max: number, redirects = 0): Promis
         const location = res.headers.location;
         res.destroy(); clearTimeout(timer);
         if (!location) { reject(new Error("bad_redirect")); return; }
-        safeFetch(new URL(location, url).toString(), max, redirects + 1).then(resolve, reject); return;
+        safeFetch(new URL(location, url).toString(), max, redirects + 1, allowedHosts).then(resolve, reject); return;
       }
       if (status < 200 || status >= 300) { res.destroy(); clearTimeout(timer); reject(new Error("source_unavailable")); return; }
       const chunks: Buffer[] = []; let total = 0;

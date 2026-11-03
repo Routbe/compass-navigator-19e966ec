@@ -319,6 +319,7 @@ export function ProfileView({
   // "Test effect" in de Studio: speel het af in deze preview, niet over de
   // volledige studiopagina.
   useEffect(() => {
+    if (!preview) return;
     const onTest = (event: Event) => {
       const detail = (event as CustomEvent<{ effect?: string; handled?: boolean; custom?: unknown }>).detail;
       if (detail?.custom) {
@@ -341,7 +342,7 @@ export function ProfileView({
       window.removeEventListener(VISIT_EFFECT_TEST_EVENT, onTest);
       stopTestRef.current?.();
     };
-  }, [prefs.visitEffect]);
+  }, [prefs.visitEffect, preview]);
 
   return (
     <main
