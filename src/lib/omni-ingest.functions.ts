@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth/middleware";
 import { ingestPayloadSchema, type OmniJob } from "@/lib/omni-ingest";
 
-/** Studio: returns immediately with a job id; the worker runs after the response. */
+/** Studio: returns immediately with a job id; the dedicated daemon processes the persisted job. */
 export const enqueueOmniUrl = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .inputValidator((input: unknown) => ingestPayloadSchema.pick({ target_url: true }).parse(input))
@@ -29,7 +29,7 @@ export const dismissOmniJob = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { sql } = await import("@/lib/neon");
-    await sql`delete from public.omni_ingest_jobs where id=${data.id} and user_id=${context.userId}`;
+    await sql`delete from public.omni_jobs where id=${data.id} and user_id=${context.userId}`;
     return { ok: true };
   });
 
@@ -38,12 +38,8 @@ export const retryOmniJob = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { sql } = await import("@/lib/neon");
-    await sql`update public.omni_ingest_jobs set status='queued', attempts=0, error=null, updated_at=now()
+    await sql`update public.omni_jobs set status='queued', attempts=0, error=null, updated_at=now()
       where id=${data.id} and user_id=${context.userId} and status='failed'`;
-    const { processOmniJob } = await import("@/lib/omni-ingest.server");
-    const { registerBackgroundTask } = await import("@/lib/background-task.server");
-    const task = processOmniJob(data.id, context.userId).catch(() => undefined);
-    if (!registerBackgroundTask(task)) void task;
     return { ok: true };
   });
 
@@ -75,4 +71,17 @@ export const revokeIngestToken = createServerFn({ method: "POST" })
     const { sql } = await import("@/lib/neon");
     await sql`delete from public.omni_ingest_tokens where user_id=${context.userId}`;
     return { ok: true };
+  });
+
+/** A short-lived owner-scoped ticket; never expose worker/database credentials. */
+export const getOmniRealtimeTicket = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .handler(async ({ context }) => {
+    const endpoint = process.env["OMNI_EVENTS_URL"];
+    const secret = process.env["OMNI_REALTIME_SECRET"];
+    if (!endpoint || !secret) return { configured: false as const };
+    const url = new URL(endpoint);
+    if (url.protocol !== "https:" || url.username || url.password || url.pathname !== "/events") throw new Error("invalid_omni_events_url");
+    const { signOmniTicket } = await import("@/lib/omni-realtime");
+    return { configured: true as const, url: url.toString(), token: await signOmniTicket(context.userId, url.origin, secret) };
   });
