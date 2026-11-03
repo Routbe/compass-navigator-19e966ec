@@ -7,11 +7,11 @@ import { ingestPayloadSchema, type OmniJob } from "@/lib/omni-ingest";
 /** Studio: returns immediately with a job id; the dedicated daemon processes the persisted job. */
 export const enqueueOmniUrl = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator((input: unknown) => ingestPayloadSchema.pick({ target_url: true }).parse(input))
+  .inputValidator((input: unknown) => ingestPayloadSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ ok: boolean; jobId?: string; error?: string }> => {
     const { enqueueOmniJob } = await import("@/lib/omni-ingest.server");
     try {
-      return { ok: true, jobId: await enqueueOmniJob({ userId: context.userId, source: "studio", url: data.target_url }) };
+      return { ok: true, jobId: await enqueueOmniJob({ userId: context.userId, source: "studio", url: data.target_url, title: data.title, mediaUrl: data.media_url }) };
     } catch (e) {
       return { ok: false, error: (e as { status?: number }).status === 429 ? "rate_limited" : "failed" };
     }
@@ -55,8 +55,7 @@ export const getIngestTokenStatus = createServerFn({ method: "GET" })
 export const rotateIngestToken = createServerFn({ method: "POST" })
   .middleware([requireAuth])
   .handler(async ({ context }): Promise<{ token: string }> => {
-    const bytes = crypto.getRandomValues(new Uint8Array(32));
-    const token = `rout_ing_${[...bytes].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+    const token = crypto.randomUUID();
     const { sha256Hex } = await import("@/lib/omni-ingest.server");
     const { sql } = await import("@/lib/neon");
     const hash = await sha256Hex(token);

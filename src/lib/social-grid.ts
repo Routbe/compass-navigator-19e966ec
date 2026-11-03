@@ -9,19 +9,18 @@
  * and on render — client input is never trusted. Client-safe: no server imports.
  */
 
-import { isAllowedProxyUrl } from "./image-proxy-rules";
-import { isOmniContentType, type OmniContentType } from "./omni-ingest";
+import { classifyOmniUrl, isLocalOmniMediaUrl, isOmniContentType, type OmniContentType } from "./omni-ingest";
+import { localGridMediaPath } from "./omni-media";
 
 export const SOCIAL_GRID_KIND = "social_grid";
 export const SOCIAL_GRID_PLATFORMS = ["instagram", "tiktok", "article", "custom"] as const;
 export type SocialGridPlatform = (typeof SOCIAL_GRID_PLATFORMS)[number];
 
 export const SOCIAL_GRID_MAX_ITEMS = 30;
-const GALLERY_MEDIA_PREFIX = "/api/public/gallery-media?";
 
 export interface SocialGridItem {
   id: string;
-  /** First-party upload or an https image from a host the privacy proxy may load. */
+  /** Persisted first-party media only; no live remote image proxies. */
   mediaUrl: string;
   caption?: string;
   /** https URL or a same-site path ("/jouwnaam"); empty = card is not clickable. */
@@ -55,12 +54,11 @@ const str = (value: unknown, max: number): string =>
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u001f\u007f]/;
 
-/** Images the hub can show without leaking visitor IPs: own uploads or proxy-allowed hosts. */
+/** Persisted media only. Ownership is enforced again by the serving endpoint. */
 export function isSocialGridMediaUrl(raw: string): boolean {
   const value = (raw ?? "").trim();
   if (!value || value.length > 2000 || CONTROL.test(value)) return false;
-  if (value.startsWith(GALLERY_MEDIA_PREFIX)) return true;
-  return isAllowedProxyUrl(value) !== null;
+  return localGridMediaPath(value) !== null;
 }
 
 /**
@@ -155,12 +153,12 @@ export function parseSocialGridConfig(raw: string | null | undefined): SocialGri
       isVideo: i["isVideo"] === true,
       pinned: i["pinned"] === true,
       createdAt: isoOrNull(i["createdAt"]) ?? new Date(0).toISOString(),
-      contentType: isOmniContentType(i["contentType"]) ? i["contentType"] : undefined,
+      contentType: isOmniContentType(i["contentType"]) ? i["contentType"] : target && !target.startsWith("/") ? classifyOmniUrl(target) : "social",
       metaTag: str(i["metaTag"], 40) || undefined,
       isHero: i["isHero"] === true || undefined,
       kineticPreviewUrl: (() => {
         const v = str(i["kineticPreviewUrl"], 2000);
-        return v.startsWith(GALLERY_MEDIA_PREFIX) ? v : undefined;
+        return isLocalOmniMediaUrl(v) ? v : undefined;
       })(),
     });
   }

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { galleryImageSrc } from "@/lib/image-proxy-rules";
 import { isSocialGridMediaUrl } from "@/lib/social-grid";
+import { isAllowedProxyUrl } from "@/lib/image-proxy-rules";
 import { ImagePlus, Loader2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 
@@ -39,13 +40,15 @@ export function GalleryImageDialog({
   open,
   onOpenChange,
   onAdd,
+  localOnly = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdd: (item: GalleryItem) => void;
+  localOnly?: boolean;
 }) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState("url");
+  const [tab, setTab] = useState(localOnly ? "upload" : "url");
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [url, setUrl] = useState("");
@@ -62,7 +65,7 @@ export function GalleryImageDialog({
     setAlt("");
     setLinkUrl("");
     setDragging(false);
-    setTab("url");
+    setTab(localOnly ? "upload" : "url");
   }
 
   function commit(imageUrl: string) {
@@ -119,11 +122,11 @@ export function GalleryImageDialog({
           <DialogTitle className="text-base">{t("studio.grid.media.title")}</DialogTitle>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs value={localOnly ? "upload" : tab} onValueChange={setTab}>
+          {!localOnly && <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="upload">{t("studio.grid.media.upload")}</TabsTrigger>
             <TabsTrigger value="url">{t("studio.grid.media.url")}</TabsTrigger>
-          </TabsList>
+          </TabsList>}
 
           <TabsContent value="upload" className="pt-3">
             <Button variant="ghost"
@@ -177,12 +180,12 @@ export function GalleryImageDialog({
               }}
               aria-label={t("studio.grid.media.url")}
             />
-            {url.trim() !== "" && !isSocialGridMediaUrl(url) && (
+            {url.trim() !== "" && !(isSocialGridMediaUrl(url) || isAllowedProxyUrl(url)) && (
               <p className="text-[11px] font-medium text-destructive" role="alert">
                 {t("studio.grid.media.invalid")}
               </p>
             )}
-            {isSocialGridMediaUrl(url) && (
+            {(isSocialGridMediaUrl(url) || isAllowedProxyUrl(url)) && (
               <div className="overflow-hidden rounded-xl border border-border bg-muted">
                 <img
                   src={galleryImageSrc(url) ?? undefined}
@@ -201,7 +204,7 @@ export function GalleryImageDialog({
             )}
             <Button variant="ghost"
               type="button"
-              disabled={!isSocialGridMediaUrl(url) || urlOk !== true}
+              disabled={!(isSocialGridMediaUrl(url) || isAllowedProxyUrl(url)) || urlOk !== true}
               onClick={() => commit(url.trim())}
               className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-foreground text-sm font-medium text-background disabled:opacity-50"
             >

@@ -25,7 +25,7 @@ import {
 } from "@/lib/social-grid";
 import { cn } from "@/lib/utils";
 import { OmniIngestPanel } from "@/components/dashboard/OmniIngestPanel";
-import { OMNI_CONTENT_TYPES } from "@/lib/omni-ingest";
+import { classifyOmniUrl, OMNI_CONTENT_TYPES } from "@/lib/omni-ingest";
 
 /**
  * Studio panel for the native Social Grid. Every change goes through the
@@ -60,7 +60,7 @@ export function SocialGridBlockSettings({
 
   const addFromDialog = (picked: GalleryItem) => {
     if (replaceId) {
-      patchItem(replaceId, { mediaUrl: picked.url });
+      patchItem(replaceId, { mediaUrl: picked.url, kineticPreviewUrl: undefined });
       setReplaceId(null);
       return;
     }
@@ -73,6 +73,7 @@ export function SocialGridBlockSettings({
       targetUrl: target,
       platform: detected?.platform ?? (target ? "article" : "custom"),
       isVideo: detected?.isVideo ?? false,
+      contentType: target && !target.startsWith("/") ? classifyOmniUrl(target) : "social",
       pinned: false,
       createdAt: new Date().toISOString(),
     };
@@ -249,7 +250,7 @@ export function SocialGridBlockSettings({
         {t("studio.grid.count", { count: config.items.length, max: SOCIAL_GRID_MAX_ITEMS })}
       </p>
 
-      <GalleryImageDialog open={dialog} onOpenChange={(next) => { setDialog(next); if (!next) setReplaceId(null); }} onAdd={addFromDialog} />
+      <GalleryImageDialog localOnly open={dialog} onOpenChange={(next) => { setDialog(next); if (!next) setReplaceId(null); }} onAdd={addFromDialog} />
     </div>
   );
 }
