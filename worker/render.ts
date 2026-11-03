@@ -34,7 +34,7 @@ export async function renderedMetadata(raw: string, transport = safeFetch): Prom
     const page = await context.newPage();
     page.on("popup", (popup) => { void popup.close(); });
     await page.goto(target.toString(), { waitUntil: "domcontentloaded", timeout: 15000 });
-    await page.waitForFunction(() => document.querySelector('meta[property="og:image"]') !== null, { timeout: 3000 }).catch(() => {});
+    await page.waitForFunction(() => document.querySelector('meta[property="og:image"]') !== null, undefined, { timeout: 3000 }).catch(() => {});
     // Only title/meta/link metadata crosses back, not the arbitrary rendered DOM.
     return await page.evaluate(() => [document.querySelector("title")?.outerHTML ?? "", ...Array.from(document.querySelectorAll("meta,link[type='application/json+oembed']"), (node) => node.outerHTML)].join("\n").slice(0, 300000));
   } finally { await browser.close(); }
