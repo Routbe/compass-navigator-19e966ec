@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { uploadGalleryMedia } from "@/lib/gallery-media.functions";
+import { uploadGridCover } from "@/lib/omni-upload.functions";
 import {
   GALLERY_ALLOWED_TYPES,
   GALLERY_MAX_BYTES,
@@ -92,9 +93,23 @@ export function GalleryImageDialog({
     }
     setBusy(true);
     try {
-      const base64 = await readBase64(file);
+      let upload = file;
+      if (localOnly) {
+        if (!file.type.startsWith("image/") || file.type === "image/svg+xml") throw new Error("unsupported_image");
+        const bitmap = await createImageBitmap(file);
+        try {
+          const ratio = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(bitmap.width * ratio)); canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
+          const ctx = canvas.getContext("2d"); if (!ctx) throw new Error("conversion_unavailable");
+          ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+          const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((result) => result ? resolve(result) : reject(new Error("conversion_failed")), "image/webp", .82));
+          upload = new File([blob], "cover.webp", { type: "image/webp" });
+        } finally { bitmap.close(); }
+      }
+      const base64 = await readBase64(upload);
       const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase();
-      const res = await uploadGalleryMedia({
+      const res = localOnly ? await uploadGridCover({ data: { base64 } }) : await uploadGalleryMedia({
         data: { base64, contentType: file.type, ext },
       });
       if (!res.ok || !res.url) {
@@ -162,7 +177,7 @@ export function GalleryImageDialog({
             <input
               ref={fileInput}
               type="file"
-              accept={GALLERY_ALLOWED_TYPES.join(",")}
+              accept={GALLERY_ALLOWED_TYPES.filter((type) => !localOnly || type !== "image/svg+xml").join(",")}
               className="hidden"
               onChange={(e) => void handleFile(e.target.files?.[0])}
             />
