@@ -29,12 +29,12 @@ export const Route = createFileRoute("/$username_/$slug")({
       },
     },
   },
-  head: () => ({
+  head: ({ params }) => ({
     meta: [
-      { title: "ROUT" },
-      { name: "description", content: "ROUT — QR-codes en korte links met karakter." },
-      { property: "og:title", content: "ROUT" },
-      { property: "og:description", content: "ROUT — QR-codes en korte links met karakter." },
+      { title: `${params.slug} · @${params.username.replace(/^@/, "")} — ROUT` },
+      { name: "description", content: `Open ${params.slug}, een korte link van @${params.username.replace(/^@/, "")} op ROUT.` },
+      { property: "og:title", content: `${params.slug} · @${params.username.replace(/^@/, "")} — ROUT` },
+      { property: "og:description", content: `Open ${params.slug}, een korte link van @${params.username.replace(/^@/, "")} op ROUT.` },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "robots", content: "noindex, nofollow" },

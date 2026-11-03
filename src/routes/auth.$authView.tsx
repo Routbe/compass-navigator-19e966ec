@@ -11,17 +11,17 @@ import { isAdminMode } from "@/lib/app-mode";
  * overige views (reset e.d.) komen van de Neon Auth-service zelf.
  */
 export const Route = createFileRoute("/auth/$authView")({
-  head: () => ({
+  head: ({ params }) => ({
     meta: [
-      { title: isAdminMode() ? i18next.t("auth.meta.admin") : i18next.t("auth.meta.signin") },
+      { title: isAdminMode() ? i18next.t("auth.meta.admin") : params.authView === "sign-up" ? "Create your ROUT account" : i18next.t("auth.meta.signin") },
       {
         name: "description",
-        content: isAdminMode() ? i18next.t("auth.meta.adminDescription") : i18next.t("auth.meta.description"),
+        content: isAdminMode() ? i18next.t("auth.meta.adminDescription") : params.authView === "sign-up" ? "Create your sovereign digital identity with a ROUT account." : i18next.t("auth.meta.description"),
       },
-      { property: "og:title", content: isAdminMode() ? i18next.t("auth.meta.admin") : i18next.t("auth.meta.signin") },
+      { property: "og:title", content: isAdminMode() ? i18next.t("auth.meta.admin") : params.authView === "sign-up" ? "Create your ROUT account" : i18next.t("auth.meta.signin") },
       {
         property: "og:description",
-        content: isAdminMode() ? i18next.t("auth.meta.adminDescription") : i18next.t("auth.meta.description"),
+        content: isAdminMode() ? i18next.t("auth.meta.adminDescription") : params.authView === "sign-up" ? "Create your sovereign digital identity with a ROUT account." : i18next.t("auth.meta.description"),
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
