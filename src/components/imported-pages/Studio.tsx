@@ -37,18 +37,18 @@ export default function Studio({ initialGrid = false }: { initialGrid?: boolean 
     const snap = params.get("snapchat");
     if (!snap) return;
     const msg: Record<string, [boolean, string]> = {
-      connected: [true, "Snapchat is gekoppeld."],
-      cancelled: [false, "Snapchat-koppeling geannuleerd."],
-      not_configured: [false, "Snapchat is nog niet ingesteld door de beheerder."],
-      invalid_state: [false, "Koppeling verlopen. Probeer het opnieuw."],
-      in_use: [false, "Dit Snapchat-account is al aan een ander profiel gekoppeld."],
+      connected: [true, t("snapStatus.connected")],
+      cancelled: [false, t("snapStatus.cancelled")],
+      not_configured: [false, t("snapStatus.notConfigured")],
+      invalid_state: [false, t("snapStatus.expired")],
+      in_use: [false, t("snapStatus.inUse")],
     };
-    const [ok, text] = msg[snap] ?? [false, "Snapchat koppelen is mislukt. Probeer het opnieuw."];
+    const [ok, text] = msg[snap] ?? [false, t("snapStatus.failed")];
     void import("sonner").then(({ toast }) => (ok ? toast.success(text) : toast.error(text)));
     params.delete("snapchat");
     const qs = params.toString();
     window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
-  }, []);
+  }, [t]);
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("page") === "booking") setPageMode("booking");
   }, []);
@@ -87,7 +87,7 @@ export default function Studio({ initialGrid = false }: { initialGrid?: boolean 
   const tabUrl = (id: ProfileVariant) => (pages.handle ? `rout.be${id === "alias" ? `/u/${pages.handle}` : verifiedPath(pages.handle)}` : null);
 
   const modeIcon = (m: PageMode, Fallback: typeof Sparkles) => m === "qa" ? MessageCircleQuestion : m === "tip" ? HeartHandshake : m === "booking" ? CalendarClock : Fallback;
-  const modeLabel = (m: PageMode, fallback: string) => m === "qa" ? "Anonieme vragen" : m === "tip" ? t("studio.mode.tip") : m === "booking" ? t("studio.nav.booking") : fallback;
+  const modeLabel = (m: PageMode, fallback: string) => m === "qa" ? t("studio.anonymousQuestions") : m === "tip" ? t("studio.mode.tip") : m === "booking" ? t("studio.nav.booking") : fallback;
   const modeSuffix = (m: PageMode) => m === "qa" ? "/ask" : m === "tip" ? "/tip" : m === "booking" ? "/booking" : "";
 
   return (

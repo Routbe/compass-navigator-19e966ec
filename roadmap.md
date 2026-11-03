@@ -1,4 +1,5 @@
 # App source import
+- [ ] Audit multilingual coverage across all routes, controls, dialogs and notifications; fix missing catalog entries and hardcoded interface text; verify NL/EN/FR/DE.
 - [x] Import full source and assets, excluding secrets and repository metadata.
 - [x] Install dependencies, confirm the build, and verify the public home page and account entry page.
 - [x] Link Neon and verify database reachability and the existing restricted app role.

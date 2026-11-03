@@ -16,15 +16,15 @@ import { TOURS, TOUR_IDS, type TourId } from "@/lib/tour/definitions";
 import { startTour } from "@/lib/tour/progress";
 
 const ITEMS = [
-  { group: "Navigatie", label: "Studio", to: "/studio", Icon: Sparkles, keywords: "profiel ontwerp" },
-  { group: "Navigatie", label: "Dashboard", to: "/dashboard", Icon: LayoutDashboard, keywords: "cockpit beheer" },
-  { group: "Navigatie", label: "Agenda & Boekingen", to: "/agenda", Icon: CalendarDays, keywords: "afspraak boeking kalender" },
-  { group: "Navigatie", label: "Workspaces wisselen", to: "/dashboard", Icon: Building2, keywords: "team workspace" },
-  { group: "Navigatie", label: "Profielen verkennen", to: "/explore", Icon: Compass, keywords: "zoeken" },
-  { group: "Acties", label: "QR-code genereren", to: "/qr-code-generator", Icon: QrCode, keywords: "qr" },
-  { group: "Acties", label: "Tokens & apps beheren", to: "/console/api", Icon: KeyRound, keywords: "api sleutel herroepen token" },
-  { group: "Acties", label: "Instellingen", to: "/settings", Icon: Settings, keywords: "account" },
-  { group: "Developers", label: "Developer Hub & docs", to: "/developers", Icon: Code2, keywords: "api mcp openapi llms" },
+  { group: "palette.navigation", label: "menu.studio.label", to: "/studio", Icon: Sparkles, keywords: "profiel ontwerp profile design profil" },
+  { group: "palette.navigation", label: "palette.dashboard", to: "/dashboard", Icon: LayoutDashboard, keywords: "cockpit beheer" },
+  { group: "palette.navigation", label: "menu.agenda.label", to: "/agenda", Icon: CalendarDays, keywords: "afspraak boeking kalender booking calendar rendez-vous" },
+  { group: "palette.navigation", label: "palette.workspaces", to: "/dashboard", Icon: Building2, keywords: "team workspace" },
+  { group: "palette.navigation", label: "palette.explore", to: "/explore", Icon: Compass, keywords: "zoeken search recherche suchen" },
+  { group: "palette.actions", label: "palette.generate", to: "/qr-code-generator", Icon: QrCode, keywords: "qr" },
+  { group: "palette.actions", label: "palette.tokens", to: "/console/api", Icon: KeyRound, keywords: "api sleutel herroepen token key" },
+  { group: "palette.actions", label: "palette.settings", to: "/settings", Icon: Settings, keywords: "account" },
+  { group: "palette.developers", label: "menu.docs.label", to: "/developers", Icon: Code2, keywords: "api mcp openapi llms" },
 ] as const;
 
 /** Global Cmd/Ctrl+K command center, mounted once in the root layout. */
@@ -70,23 +70,23 @@ export function CommandPalette() {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Zoek, plak een link of typ een @handle…" value={query} onValueChange={setQuery} />
+      <CommandInput placeholder={t("palette.placeholder")} value={query} onValueChange={setQuery} />
       <CommandList>
-        <CommandEmpty>Niets gevonden.</CommandEmpty>
+        <CommandEmpty>{t("palette.empty")}</CommandEmpty>
         {routable && (
-          <CommandGroup heading="Routeren">
+          <CommandGroup heading={t("palette.routing")}>
             <CommandItem value={`route ${query}`} onSelect={() => go(intent.destination)}>
               {intent.kind === "url" ? <QrCode /> : <AtSign />}
-              {intent.kind === "url" ? "QR-code maken voor deze link" : intent.kind === "handle" ? `Profiel @${intent.handle} openen` : `Commando ${intent.command}`}
+              {intent.kind === "url" ? t("palette.qrLink") : intent.kind === "handle" ? t("palette.openProfile", { handle: intent.handle }) : t("palette.command", { command: intent.command })}
               <CommandShortcut>↵</CommandShortcut>
             </CommandItem>
           </CommandGroup>
         )}
         {groups.map((g) => (
-          <CommandGroup key={g} heading={g}>
+          <CommandGroup key={g} heading={t(g)}>
             {ITEMS.filter((i) => i.group === g).map(({ label, to, Icon, keywords }) => (
-              <CommandItem key={label} value={`${label} ${keywords}`} onSelect={() => go(to)}>
-                <Icon /> {label}
+              <CommandItem key={label} value={`${t(label)} ${keywords}`} onSelect={() => go(to)}>
+                <Icon /> {t(label)}
               </CommandItem>
             ))}
           </CommandGroup>

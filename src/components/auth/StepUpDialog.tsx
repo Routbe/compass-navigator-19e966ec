@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { completeStepUp, getStepUpOptions, sendStepUpEmail } from "@/lib/auth/step-up.functions";
 import { isStepUpRequiredError, type StepUpMethod } from "@/lib/auth/step-up-rules";
 import { authClient } from "@/lib/auth-client";
+import { i18n, useTranslation } from "@/lib/i18n";
 
 type Waiter = { resolve: (ok: boolean) => void };
 let opener: ((w: Waiter) => void) | null = null;
@@ -22,12 +23,13 @@ export async function withStepUp<T>(fn: () => Promise<T>): Promise<T> {
     return await fn();
   } catch (e) {
     if (!isStepUpRequiredError(e)) throw e;
-    if (!(await requestStepUp())) throw new Error("Bevestiging geannuleerd.");
+    if (!(await requestStepUp())) throw new Error(i18n.t("stepUp.cancelled"));
     return fn();
   }
 }
 
 export function StepUpDialog() {
+  const { t } = useTranslation();
   const [waiter, setWaiter] = useState<Waiter | null>(null);
   const [methods, setMethods] = useState<StepUpMethod[]>([]);
   const [method, setMethod] = useState<StepUpMethod | null>(null);
@@ -67,20 +69,20 @@ export function StepUpDialog() {
     try {
       if (method === "passkey") {
         const r = await authClient.signIn.passkey();
-        if (r?.error) throw new Error("Passkey niet bevestigd.");
+        if (r?.error) throw new Error(t("stepUp.passkeyFailed"));
         await complete({ data: { method } });
       } else {
         await complete({ data: { method, code } });
       }
       close(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Dat lukte niet.");
+      setError(e instanceof Error ? e.message : t("ui.failed"));
     } finally {
       setBusy(false);
     }
   }
 
-  const label: Record<StepUpMethod, string> = { passkey: "Passkey", totp: "Authenticator-app", email: "E-mailcode" };
+  const label: Record<StepUpMethod, string> = { passkey: t("stepUp.passkey"), totp: t("stepUp.totp"), email: t("stepUp.email") };
   const icon = { passkey: Fingerprint, totp: KeyRound, email: Mail };
 
   return (
@@ -88,9 +90,9 @@ export function StepUpDialog() {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5" /> Bevestig dat jij het bent
+            <ShieldCheck className="h-5 w-5" /> {t("stepUp.title")}
           </DialogTitle>
-          <DialogDescription>Deze actie is gevoelig. Bevestig opnieuw (geldig 2 minuten).</DialogDescription>
+          <DialogDescription>{t("stepUp.description")}</DialogDescription>
         </DialogHeader>
         {methods.length > 1 && (
           <div className="flex gap-2">
@@ -106,12 +108,12 @@ export function StepUpDialog() {
         )}
         {method === "email" && (
           <p className="rounded-md border border-border bg-muted p-2 text-xs text-muted-foreground">
-            Voeg een passkey of authenticator-app toe in Accountinstellingen. E-mailcodes zijn alleen een tijdelijke terugvaloptie.
+            {t("stepUp.emailHint")}
           </p>
         )}
         {method === "email" && !sent && (
           <Button variant="outline" disabled={busy} onClick={() => void sendEmail().then(() => setSent(true)).catch((e: Error) => setError(e.message))}>
-            Stuur code naar mijn e-mail
+            {t("stepUp.send")}
           </Button>
         )}
         {(method === "totp" || (method === "email" && sent)) && (
@@ -120,9 +122,9 @@ export function StepUpDialog() {
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => close(false)}>Annuleer</Button>
+          <Button variant="ghost" onClick={() => close(false)}>{t("ui.cancel")}</Button>
           <Button disabled={busy || !method || (method !== "passkey" && code.length !== 6)} onClick={() => void verify()}>
-            {method === "passkey" ? "Gebruik passkey" : "Bevestig"}
+            {method === "passkey" ? t("stepUp.usePasskey") : t("stepUp.confirm")}
           </Button>
         </div>
       </DialogContent>
