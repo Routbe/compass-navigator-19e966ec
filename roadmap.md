@@ -20,6 +20,7 @@
 - [x] Replace Studio polling with authenticated SSE from the persistent daemon.
 - [x] Test queue, recovery, ticket authorization and separation of web/worker concerns; native disposable PostgreSQL confirms commit-only notifications and SKIP LOCKED concurrency.
 - [x] Final targeted checks: 23 application tests and 5 daemon tests pass, including real Sharp/FFmpeg conversion; preview build OK.
+- [x] Current verification: 51 application tests and 4 daemon tests pass; native PostgreSQL test previously passed, hardened browser deployment check remains blocked; preview build OK.
 - [ ] Standalone daemon TypeScript check: separate worker/tsconfig.json supplied; manual typecheck execution is disallowed in this environment, so a tsgo exit-0 guarantee is not provided.
 - [ ] Deploy daemon and activate migration: requires persistent PostgreSQL access (the Neon HTTP connector cannot LISTEN), worker hosting, storage credentials and shared realtime secret.
 - [ ] Authenticated end-to-end ingestion and published media verification: blocked by missing ingestion schema and account setup.
