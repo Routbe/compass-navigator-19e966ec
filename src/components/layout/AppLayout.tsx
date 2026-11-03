@@ -74,7 +74,7 @@ export function AppLayout({
               <div className="min-w-0">
                 {crumbs?.length ? (
                   <nav
-                    aria-label="Breadcrumb"
+                    aria-label={t("ui.breadcrumb")}
                     className="mb-2 flex items-center gap-1 text-xs text-muted-foreground"
                   >
                     <Link to="/" className="hover:text-foreground">
@@ -130,7 +130,7 @@ export function AppLayout({
         )}
       >
         <div className="container mx-auto flex h-16 items-center gap-4 px-4">
-          <Link to="/" className="shrink-0" aria-label="ROUT home">
+          <Link to="/" className="shrink-0" aria-label={t("ui.routHome")}>
             <RoutLogo size={28} />
           </Link>
           <div className="hidden sm:block">
@@ -172,13 +172,14 @@ export function AppLayout({
 }
 
 function OsStatusLine() {
+  const { t } = useTranslation();
   return (
     <footer
       data-testid="os-status-line"
       className="sticky bottom-0 z-40 flex h-7 items-center justify-center gap-2 border-t border-border/60 bg-background/90 font-mono text-[11px] text-muted-foreground backdrop-blur"
     >
       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-live" aria-hidden />
-      ROUT OS v2.5 · Alle systemen operationeel
+      {t("ui.systemsOperational")}
     </footer>
   );
 }

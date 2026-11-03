@@ -23,22 +23,22 @@ const itemClass =
 // Directe routing naar de werkende tools — de informatieve SEO-landingspagina's
 // (/qr-code-generator, /product/*) blijven via sitemap en footer bereikbaar.
 const TOOLS = [
-  { to: "/qr", label: "QR Generator", hint: "menu.generator.hint", icon: QrCode },
-  { to: "/studio", label: "Profile Hub Studio", hint: "menu.studio.hint", icon: Palette },
-  { to: "/agenda", label: "Agenda & Boekingen", hint: "menu.agenda.hint", icon: CalendarDays },
-  { to: "/batch", label: "Batch Engine", hint: "menu.batch.hint", icon: Layers },
+  { to: "/qr", label: "menu.generator.label", hint: "menu.generator.hint", icon: QrCode },
+  { to: "/studio", label: "menu.studio.label", hint: "menu.studio.hint", icon: Palette },
+  { to: "/agenda", label: "menu.agenda.label", hint: "menu.agenda.hint", icon: CalendarDays },
+  { to: "/batch", label: "menu.batch.label", hint: "menu.batch.hint", icon: Layers },
   {
     to: "/dashboard/routes",
-    label: "Dynamic Links & Analytics",
+    label: "menu.links.label",
     hint: "menu.links.hint",
     icon: Link2,
   },
 ] as const;
 
 const INFRASTRUCTURE = [
-  { to: "/product/custom-domains", label: "Custom Domains", hint: "menu.domains.hint", icon: Globe },
-  { to: "/console", label: "Developer Console", hint: "menu.api.hint", icon: PanelsTopLeft },
-  { to: "/self-hosting", label: "Open Source & Docs", hint: "menu.docs.hint", icon: BookOpen },
+  { to: "/product/custom-domains", label: "menu.domains.label", hint: "menu.domains.hint", icon: Globe },
+  { to: "/console", label: "menu.api.label", hint: "menu.api.hint", icon: PanelsTopLeft },
+  { to: "/self-hosting", label: "menu.docs.label", hint: "menu.docs.hint", icon: BookOpen },
 ] as const;
 
 interface NavItem {
@@ -57,7 +57,7 @@ function Section({ title, items, onNavigate }: { title: string; items: readonly 
         <Link key={to} to={to} className={itemClass} onClick={onNavigate}>
           <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           <span className="min-w-0">
-            {label}
+            {t(label)}
             <span className="block truncate text-xs text-muted-foreground">{t(hint)}</span>
           </span>
         </Link>
